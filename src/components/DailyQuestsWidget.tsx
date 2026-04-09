@@ -1,0 +1,89 @@
+'use client';
+
+import { useAuth } from '@/contexts/AuthContext';
+import { Target, CheckCircle2, Coins, Gift } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+export default function DailyQuestsWidget() {
+  const { userProfile, claimQuestReward } = useAuth();
+
+  if (!userProfile || !userProfile.dailyQuests || userProfile.dailyQuests.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white/80 p-5 rounded-3xl hand-drawn-border relative overflow-hidden mt-6 mb-8 shadow-sm">
+      <div className="flex items-center gap-3 mb-4 border-b border-indigo-100 pb-3">
+        <div className="bg-indigo-100 p-2 rounded-xl">
+          <Target className="text-indigo-500" size={24} />
+        </div>
+        <div>
+          <h2 className="text-lg font-black text-indigo-900" style={{ fontFamily: 'var(--font-prompt)' }}>
+            ภารกิจประจำวัน
+          </h2>
+          <p className="text-xs text-indigo-500/80 font-bold tracking-wider">DAILY QUESTS</p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {userProfile.dailyQuests.map((quest) => {
+          const progressPercent = Math.min(100, (quest.progress / quest.goal) * 100);
+          
+          return (
+            <div 
+              key={quest.id}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                quest.claimed 
+                  ? 'bg-slate-50 border-slate-200 opacity-60' 
+                  : quest.completed 
+                    ? 'bg-amber-50 border-amber-300' 
+                    : 'bg-white border-slate-100'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className={`font-bold text-sm ${quest.completed ? 'text-amber-700' : 'text-slate-700'}`} style={{ fontFamily: 'var(--font-prompt)' }}>
+                    {quest.title}
+                  </h3>
+                  <div className="flex items-center gap-1 mt-1 text-xs text-amber-600 font-bold">
+                    <Coins size={12} /> +{quest.rewardCoins} เหรียญ
+                  </div>
+                </div>
+                
+                {quest.claimed ? (
+                   <div className="bg-slate-200 text-slate-500 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                     <CheckCircle2 size={12} /> รับแล้ว
+                   </div>
+                ) : quest.completed ? (
+                   <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
+                     onClick={() => claimQuestReward(quest.id)}
+                     className="bg-amber-400 text-white shadow-sm text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-amber-500 transition-colors"
+                   >
+                     <Gift size={14} /> รับรางวัล
+                   </motion.button>
+                ) : (
+                   <div className="text-xs font-bold text-slate-400">
+                     {quest.progress} / {quest.goal}
+                   </div>
+                )}
+              </div>
+
+              {/* Progress Bar */}
+              {!quest.claimed && (
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden mt-3">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent}%` }}
+                    className={`h-full rounded-full ${quest.completed ? 'bg-amber-400' : 'bg-indigo-400'}`}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

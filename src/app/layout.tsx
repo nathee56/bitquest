@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import SideNav from "@/components/SideNav";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "BitQuest — เรียนรู้ทีละนิด เก่งขึ้นทุกวัน",
@@ -31,6 +32,7 @@ export default function RootLayout({
             </main>
           </div>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

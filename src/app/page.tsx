@@ -17,10 +17,12 @@ import LearningPath from '@/components/LearningPath';
 import BottomNav from '@/components/BottomNav';
 import Mascot from '@/components/Mascot';
 import VisitorCounter from '@/components/VisitorCounter';
+import DailyQuestsWidget from '@/components/DailyQuestsWidget';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playPop } from '@/lib/soundEffects';
 import { hapticLight } from '@/lib/haptics';
+import { Swords } from 'lucide-react';
 
 export default function HomePage() {
   const { 
@@ -400,6 +402,33 @@ export default function HomePage() {
             displayName={userProfile?.displayName || 'นักสำรวจ'}
             streakCount={userProfile?.streakCount || 0}
           />
+
+          <div className="px-4">
+            {/* Boss Fight Banner */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/boss')}
+              className="mt-6 rounded-3xl overflow-hidden cursor-pointer relative shadow-lg hand-drawn-border"
+              style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}
+            >
+               <div className="absolute inset-0 bg-white/10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E")' }} />
+               <div className="relative p-6 flex items-center justify-between z-10">
+                  <div>
+                    <h2 className="text-xl font-black text-white mb-1 tracking-wide flex items-center gap-2" style={{ fontFamily: 'var(--font-mali)' }}>
+                      <Swords className="text-white fill-white" size={24} /> สู้บอสรับเหรียญ 🪙
+                    </h2>
+                    <p className="text-white/80 text-sm font-bold tracking-wider">TIME ATTACK MODE</p>
+                  </div>
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30 text-3xl shadow-inner">
+                    👾
+                  </div>
+               </div>
+            </motion.div>
+
+            {/* Daily Quests */}
+            <DailyQuestsWidget />
+          </div>
       
       {/* Learning Path replaces LessonFeed */}
       <LearningPath

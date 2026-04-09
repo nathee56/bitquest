@@ -24,7 +24,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { UserProfile, UserProgress } from '@/lib/types';
-import { checkLevelUp, calculateStreak, EXP_DAILY_LOGIN } from '@/lib/gamification';
+import { checkLevelUp, calculateStreak, EXP_DAILY_LOGIN, generateDailyQuests } from '@/lib/gamification';
 
 // === Context Shape ===
 interface AuthContextType {
@@ -52,6 +52,10 @@ interface AuthContextType {
   spendCoins: (amount: number) => Promise<boolean>;
   unlockItem: (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => Promise<void>;
   equipItem: (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => Promise<void>;
+  
+  // Quests
+  updateQuestProgress: (type: 'complete_lessons' | 'perfect_combo' | 'play_boss', amount: number) => Promise<void>;
+  claimQuestReward: (questId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -137,6 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           unlockedProfileFrames: ['default'],
           equippedMascotStyle: 'default',
           equippedProfileFrame: 'default',
+          dailyQuests: generateDailyQuests(),
+          lastQuestRefreshDate: new Date(),
         };
 
         await setDoc(userRef, {
@@ -156,6 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           unlockedProfileFrames: profile.unlockedProfileFrames,
           equippedMascotStyle: profile.equippedMascotStyle,
           equippedProfileFrame: profile.equippedProfileFrame,
+          dailyQuests: profile.dailyQuests,
+          lastQuestRefreshDate: Timestamp.fromDate(profile.lastQuestRefreshDate!),
         });
       }
 
@@ -222,6 +230,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { newLevel, newEXP } = checkLevelUp(profile.currentLevel, profile.currentEXP + EXP_DAILY_LOGIN);
             profile.currentLevel = newLevel;
             profile.currentEXP = newEXP;
+            profile.dailyQuests = generateDailyQuests();
+            profile.lastQuestRefreshDate = new Date();
             setShowDailyNotice(true);
           }
 
@@ -254,6 +264,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         equippedHat: 'none',
         equippedAccessory: 'none',
         photoURL: '',
+        dailyQuests: generateDailyQuests(),
+        lastQuestRefreshDate: new Date(),
       };
       
       setUserProfile(newGuestProfile);
@@ -620,6 +632,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userProfile, firebaseUser]);
 
+  // ─── Quests ───
+  const updateQuestProgress = useCallback(async (type: 'complete_lessons' | 'perfect_combo' | 'play_boss', amount: number) => {
+    if (!userProfile || !userProfile.dailyQuests) return;
+    
+    let updated = false;
+    const newQuests = userProfile.dailyQuests.map(q => {
+      if (q.type === type && !q.completed) {
+        const newProgress = Math.min(q.goal, q.progress + amount);
+        if (newProgress !== q.progress) updated = true;
+        return { ...q, progress: newProgress, completed: newProgress >= q.goal };
+      }
+      return q;
+    });
+
+    if (!updated) return;
+
+    const newProfile = { ...userProfile, dailyQuests: newQuests };
+    setUserProfile(newProfile);
+
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { dailyQuests: newQuests });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(newProfile));
+    }
+  }, [userProfile, firebaseUser]);
+
+  const claimQuestReward = useCallback(async (questId: string) => {
+    if (!userProfile || !userProfile.dailyQuests) return;
+
+    const quest = userProfile.dailyQuests.find(q => q.id === questId);
+    if (!quest || !quest.completed || quest.claimed) return;
+
+    const newQuests = userProfile.dailyQuests.map(q => 
+      q.id === questId ? { ...q, claimed: true } : q
+    );
+
+    const newCoins = userProfile.coins + quest.rewardCoins;
+    const newProfile = { ...userProfile, dailyQuests: newQuests, coins: newCoins };
+    setUserProfile(newProfile);
+
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
+        dailyQuests: newQuests,
+        coins: newCoins 
+      });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(newProfile));
+    }
+  }, [userProfile, firebaseUser]);
+
   // ─── Heart Regeneration ───
   useEffect(() => {
     if (!userProfile || userProfile.hearts >= 5 || !userProfile.lastHeartLoss) return;
@@ -670,6 +732,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     spendCoins,
     unlockItem,
     equipItem,
+    updateQuestProgress,
+    claimQuestReward,
   };
 
   return (

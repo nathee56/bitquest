@@ -3,6 +3,8 @@
 // Pure functions for EXP, leveling, and streaks
 // ============================================
 
+import { DailyQuest } from "./types";
+
 // === Constants ===
 export const LEVEL_CAP = 99;
 export const BASE_EXP = 100;
@@ -70,4 +72,29 @@ export function calculateStreak(
     // Less than 24 hours — same day, no change
     return { newStreakCount: currentStreakCount, streakAction: 'same' };
   }
+}
+
+// === Daily Quests System ===
+
+const QUEST_POOL: Omit<DailyQuest, 'id' | 'progress' | 'completed' | 'claimed'>[] = [
+  { type: 'complete_lessons', title: 'เรียนจบ 2 บทเรียน', goal: 2, rewardCoins: 30 },
+  { type: 'complete_lessons', title: 'เรียนจบ 3 บทเรียน', goal: 3, rewardCoins: 50 },
+  { type: 'perfect_combo', title: 'ตอบถูกติดกัน 3 ครั้ง', goal: 3, rewardCoins: 20 },
+  { type: 'perfect_combo', title: 'ตอบถูกติดกัน 5 ครั้ง', goal: 5, rewardCoins: 40 },
+  { type: 'play_boss', title: 'ท้าทายบอส 1 ครั้ง', goal: 1, rewardCoins: 25 },
+  { type: 'play_boss', title: 'สู้บอส 3 ครั้ง', goal: 3, rewardCoins: 60 },
+];
+
+export function generateDailyQuests(): DailyQuest[] {
+  // Shuffle pool and pick 3
+  const shuffled = [...QUEST_POOL].sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, 3);
+  
+  return selected.map(q => ({
+    ...q,
+    id: `quest_${Math.random().toString(36).substr(2, 9)}`,
+    progress: 0,
+    completed: false,
+    claimed: false,
+  }));
 }

@@ -7,6 +7,18 @@
 // Firestore stores subjects as Thai strings
 export type SubjectType = 'ประวัติศาสตร์' | 'สังคมศึกษา' | 'ภาษาอังกฤษ' | 'ความรู้ทั่วไป';
 
+// === Daily Quests ===
+export interface DailyQuest {
+  id: string;             // generated id
+  type: 'complete_lessons' | 'perfect_combo' | 'play_boss'; 
+  title: string;
+  progress: number;
+  goal: number;
+  rewardCoins: number;
+  completed: boolean;
+  claimed: boolean;
+}
+
 // === Lesson Content Block ===
 // Each lesson contains an array of these content blocks
 export interface LessonContent {
@@ -52,6 +64,10 @@ export interface UserProfile {
   unlockedProfileFrames?: string[];
   unlockedHats?: string[];
   unlockedAccessories?: string[];
+  
+  // Quests & Boss
+  dailyQuests?: DailyQuest[];
+  lastQuestRefreshDate?: Date | null;
 }
 
 // === User Progress (Firestore: `user_progress` collection) ===
