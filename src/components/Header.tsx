@@ -62,15 +62,27 @@ export default function Header({ displayName }: HeaderProps) {
           </span>
         </motion.div>
 
-        {/* EXP Pill */}
+        {/* Hearts Pill */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-amber-100 bg-amber-50"
+          className="flex-1 min-w-[70px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl border-2 border-rose-100 bg-rose-50"
         >
-          <span className="text-[16px]">✨</span>
-          <span className="text-amber-600 text-sm font-black tracking-wide" style={{ fontFamily: 'var(--font-mali)' }}>
-            {exp}
+          <span className="text-[14px]">❤️</span>
+          <span className="text-rose-600 text-sm font-black tracking-wide" style={{ fontFamily: 'var(--font-mali)' }}>
+            {userProfile?.hearts ?? 5}
+          </span>
+        </motion.div>
+
+        {/* Coins Pill */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex-1 min-w-[70px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl border-2 border-yellow-100 bg-yellow-50"
+        >
+          <span className="text-[14px]">🪙</span>
+          <span className="text-yellow-600 text-sm font-black tracking-wide" style={{ fontFamily: 'var(--font-mali)' }}>
+            {userProfile?.coins ?? 0}
           </span>
         </motion.div>
 
@@ -78,9 +90,9 @@ export default function Header({ displayName }: HeaderProps) {
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-orange-100 bg-orange-50"
+          className="flex-1 min-w-[70px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl border-2 border-orange-100 bg-orange-50"
         >
-          <span className="text-[16px]">🔥</span>
+          <span className="text-[14px]">🔥</span>
           <span className="text-orange-600 text-sm font-black tracking-wide" style={{ fontFamily: 'var(--font-mali)' }}>
             {streak}
           </span>

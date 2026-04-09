@@ -6,6 +6,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -46,6 +47,11 @@ interface AuthContextType {
   completeLesson: (lessonId: string) => Promise<void>;
   updateConsecutiveCorrect: (correct: boolean) => Promise<void>;
   resetGuestProgress: () => void;
+  deductHeart: () => Promise<void>;
+  addCoins: (amount: number) => Promise<void>;
+  spendCoins: (amount: number) => Promise<boolean>;
+  unlockItem: (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => Promise<void>;
+  equipItem: (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,6 +86,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastLoginDate: data.lastLoginDate?.toDate() || null,
           consecutiveCorrect: data.consecutiveCorrect || 0,
           photoURL: data.photoURL || user.photoURL || '',
+          coins: data.coins ?? 100,
+          hearts: data.hearts ?? 5,
+          lastHeartLoss: data.lastHeartLoss?.toDate() || null,
+          unlockedMascotStyles: data.unlockedMascotStyles || ['default'],
+          unlockedProfileFrames: data.unlockedProfileFrames || ['default'],
+          equippedMascotStyle: data.equippedMascotStyle || 'default',
+          equippedProfileFrame: data.equippedProfileFrame || 'default',
         };
 
         // Apply streak logic
@@ -117,6 +130,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            lastLoginDate: new Date(),
           consecutiveCorrect: 0,
           photoURL: user.photoURL || '',
+          coins: 100,
+          hearts: 5,
+          lastHeartLoss: null,
+          unlockedMascotStyles: ['default'],
+          unlockedProfileFrames: ['default'],
+          equippedMascotStyle: 'default',
+          equippedProfileFrame: 'default',
         };
 
         await setDoc(userRef, {
@@ -129,6 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            lastLoginDate: Timestamp.fromDate(profile.lastLoginDate!),
           consecutiveCorrect: profile.consecutiveCorrect,
           photoURL: profile.photoURL,
+          coins: profile.coins,
+          hearts: profile.hearts,
+          lastHeartLoss: null,
+          unlockedMascotStyles: profile.unlockedMascotStyles,
+          unlockedProfileFrames: profile.unlockedProfileFrames,
+          equippedMascotStyle: profile.equippedMascotStyle,
+          equippedProfileFrame: profile.equippedProfileFrame,
         });
       }
 
@@ -171,7 +198,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedProgressStr = localStorage.getItem('guest_progress');
         
         if (storedProfileStr && storedProgressStr) {
-          const profile = JSON.parse(storedProfileStr);
+          const rawProfile = JSON.parse(storedProfileStr);
+          const profile = {
+            ...rawProfile,
+            coins: rawProfile.coins ?? 100,
+            hearts: rawProfile.hearts ?? 5,
+            lastHeartLoss: rawProfile.lastHeartLoss ? new Date(rawProfile.lastHeartLoss) : null,
+            unlockedMascotStyles: rawProfile.unlockedMascotStyles || ['default'],
+            unlockedProfileFrames: rawProfile.unlockedProfileFrames || ['default'],
+            equippedMascotStyle: rawProfile.equippedMascotStyle || 'default',
+            equippedProfileFrame: rawProfile.equippedProfileFrame || 'default',
+          };
           // Convert string date back to Date object
           const lastDate = profile.lastLoginDate ? new Date(profile.lastLoginDate) : null;
           
@@ -196,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      const newGuestProfile = {
+      const newGuestProfile: UserProfile = {
         uid: 'guest',
         displayName: 'นักสำรวจ (Guest)',
         email: '',
@@ -205,6 +242,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         streakCount: 1, // Start at 1 for the first visit
         lastLoginDate: new Date(),
         consecutiveCorrect: 0,
+        coins: 100,
+        hearts: 5,
+        lastHeartLoss: null,
+        unlockedMascotStyles: ['default'],
+        unlockedProfileFrames: ['default'],
+        unlockedHats: [],
+        unlockedAccessories: [],
+        equippedMascotStyle: 'default',
+        equippedProfileFrame: 'default',
+        equippedHat: 'none',
+        equippedAccessory: 'none',
+        photoURL: '',
       };
       
       setUserProfile(newGuestProfile);
@@ -278,6 +327,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentEXP: 0,
         streakCount: 1,
         lastLoginDate: Timestamp.fromDate(new Date()),
+        consecutiveCorrect: 0,
+        coins: 100,
+        hearts: 5,
+        lastHeartLoss: null,
+        unlockedMascotStyles: ['default'],
+        unlockedProfileFrames: ['default'],
+        unlockedHats: [],
+        unlockedAccessories: [],
+        equippedMascotStyle: 'default',
+        equippedProfileFrame: 'default',
+        equippedHat: 'none',
+        equippedAccessory: 'none',
+        photoURL: '',
       });
 
       // Also create progress doc
@@ -299,6 +361,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastLoginDate: new Date(),
         consecutiveCorrect: 0,
         photoURL: '',
+        coins: 100,
+        hearts: 5,
+        lastHeartLoss: null,
+        unlockedMascotStyles: ['default'],
+        unlockedProfileFrames: ['default'],
+        unlockedHats: [],
+        unlockedAccessories: [],
+        equippedMascotStyle: 'default',
+        equippedProfileFrame: 'default',
+        equippedHat: 'none',
+        equippedAccessory: 'none',
       });
 
       setUserProgress({
@@ -441,12 +514,140 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       streakCount: 0,
       lastLoginDate: new Date(),
       consecutiveCorrect: 0,
+      coins: 100,
+      hearts: 5,
+      lastHeartLoss: null,
+      unlockedMascotStyles: ['default'],
+      unlockedProfileFrames: ['default'],
+      unlockedHats: [],
+      unlockedAccessories: [],
+      equippedMascotStyle: 'default',
+      equippedProfileFrame: 'default',
+      equippedHat: 'none',
+      equippedAccessory: 'none',
     });
     setUserProgress({
       uid: 'guest',
       completedLessons: [],
     });
   }, []);
+
+  // ─── Gamification & Shop Methods ───
+  const deductHeart = useCallback(async () => {
+    if (!userProfile || userProfile.hearts <= 0) return;
+    const newHearts = userProfile.hearts - 1;
+    const newLastLoss = userProfile.hearts === 5 ? new Date() : userProfile.lastHeartLoss;
+    
+    const updated = { ...userProfile, hearts: newHearts, lastHeartLoss: newLastLoss };
+    setUserProfile(updated);
+    
+    if (firebaseUser && db) {
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      await updateDoc(userRef, { hearts: newHearts, lastHeartLoss: newLastLoss ? Timestamp.fromDate(newLastLoss) : null });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(updated));
+    }
+  }, [userProfile, firebaseUser]);
+
+  const addCoins = useCallback(async (amount: number) => {
+    if (!userProfile) return;
+    const updated = { ...userProfile, coins: userProfile.coins + amount };
+    setUserProfile(updated);
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { coins: updated.coins });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(updated));
+    }
+  }, [userProfile, firebaseUser]);
+
+  const spendCoins = useCallback(async (amount: number) => {
+    if (!userProfile || userProfile.coins < amount) return false;
+    const updated = { ...userProfile, coins: userProfile.coins - amount };
+    setUserProfile(updated);
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { coins: updated.coins });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(updated));
+    }
+    return true;
+  }, [userProfile, firebaseUser]);
+
+  const unlockItem = useCallback(async (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => {
+    if (!userProfile) return;
+    let updated = { ...userProfile };
+    if (type === 'mascot' && !userProfile.unlockedMascotStyles?.includes(id)) {
+      updated.unlockedMascotStyles = [...(userProfile.unlockedMascotStyles || []), id];
+    } else if (type === 'frame' && !userProfile.unlockedProfileFrames?.includes(id)) {
+      updated.unlockedProfileFrames = [...(userProfile.unlockedProfileFrames || []), id];
+    } else if (type === 'hat' && !userProfile.unlockedHats?.includes(id)) {
+      updated.unlockedHats = [...(userProfile.unlockedHats || []), id];
+    } else if (type === 'accessory' && !userProfile.unlockedAccessories?.includes(id)) {
+      updated.unlockedAccessories = [...(userProfile.unlockedAccessories || []), id];
+    } else {
+      return;
+    }
+    setUserProfile(updated);
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
+        unlockedMascotStyles: updated.unlockedMascotStyles,
+        unlockedProfileFrames: updated.unlockedProfileFrames,
+        unlockedHats: updated.unlockedHats,
+        unlockedAccessories: updated.unlockedAccessories,
+      });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(updated));
+    }
+  }, [userProfile, firebaseUser]);
+
+  const equipItem = useCallback(async (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => {
+    if (!userProfile) return;
+    let updated = { ...userProfile };
+    if (type === 'mascot') updated.equippedMascotStyle = id;
+    if (type === 'frame') updated.equippedProfileFrame = id;
+    if (type === 'hat') updated.equippedHat = id;
+    if (type === 'accessory') updated.equippedAccessory = id;
+    
+    setUserProfile(updated);
+    if (firebaseUser && db) {
+      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
+        equippedMascotStyle: updated.equippedMascotStyle,
+        equippedProfileFrame: updated.equippedProfileFrame,
+        equippedHat: updated.equippedHat,
+        equippedAccessory: updated.equippedAccessory,
+      });
+    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+      localStorage.setItem('guest_profile', JSON.stringify(updated));
+    }
+  }, [userProfile, firebaseUser]);
+
+  // ─── Heart Regeneration ───
+  useEffect(() => {
+    if (!userProfile || userProfile.hearts >= 5 || !userProfile.lastHeartLoss) return;
+    
+    const REGEN_TIME_MS = 7 * 60 * 1000; // 7 minutes
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const lossTime = userProfile.lastHeartLoss!.getTime();
+      const timeDiff = now - lossTime;
+      
+      const heartsToRegen = Math.floor(timeDiff / REGEN_TIME_MS);
+      if (heartsToRegen > 0) {
+        const newHearts = Math.min(5, userProfile.hearts + heartsToRegen);
+        const newLossTime = newHearts === 5 ? null : new Date(lossTime + (heartsToRegen * REGEN_TIME_MS));
+        
+        const updated = { ...userProfile, hearts: newHearts, lastHeartLoss: newLossTime };
+        setUserProfile(updated);
+        
+        if (firebaseUser && db) {
+           updateDoc(doc(db, 'users', firebaseUser.uid), { hearts: newHearts, lastHeartLoss: newLossTime ? Timestamp.fromDate(newLossTime) : null });
+        } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
+           localStorage.setItem('guest_profile', JSON.stringify(updated));
+        }
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [userProfile, firebaseUser]);
 
   // ─── Context Value ───
   const value: AuthContextType = {
@@ -464,11 +665,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     completeLesson,
     updateConsecutiveCorrect,
     resetGuestProgress,
+    deductHeart,
+    addCoins,
+    spendCoins,
+    unlockItem,
+    equipItem,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {loading ? <LoadingScreen /> : children}
     </AuthContext.Provider>
   );
 }

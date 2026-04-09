@@ -103,7 +103,7 @@ export default function LessonPage() {
   const router = useRouter();
   const lessonId = params.id as string;
 
-  const { addEXP, completeLesson, firebaseUser, signInWithGoogle, updateConsecutiveCorrect } = useAuth();
+  const { addEXP, completeLesson, firebaseUser, signInWithGoogle, updateConsecutiveCorrect, userProfile, deductHeart, addCoins } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loadingLesson, setLoadingLesson] = useState(true);
@@ -192,6 +192,9 @@ export default function LessonPage() {
 
     if (isLastPage) {
       completeLesson(lessonId);
+      if (addCoins) {
+        addCoins(20); // Award 20 coins for completing
+      }
       // Confetti + celebration on lesson complete
       setShowConfetti(true);
       playConfetti();
@@ -267,10 +270,17 @@ export default function LessonPage() {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 2000);
         handleExpGain(EXP_QUIZ_CORRECT);
+        // Notify Mascot
+        window.dispatchEvent(new Event('mascot:correct'));
       } else {
-        // Wrong answer: error sound + haptic
+        // Wrong answer: error sound + haptic + deduct heart
         playError();
         hapticError();
+        if (deductHeart) {
+          deductHeart();
+        }
+        // Notify Mascot
+        window.dispatchEvent(new Event('mascot:wrong'));
       }
       setTimeout(() => setShowExplanation(true), 600);
     }
@@ -281,6 +291,25 @@ export default function LessonPage() {
   // Loading state — Skeleton
   if (loadingLesson) {
     return <LessonSkeleton />;
+  }
+
+  // No Hearts State
+  if (userProfile && userProfile.hearts <= 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ backgroundColor: 'var(--color-lime-cream)', fontFamily: 'var(--font-prompt)' }}>
+        <div className="text-7xl mb-4 float-animation opacity-90">💔</div>
+        <p className="text-xl font-bold mb-2 text-slate-800" style={{ fontFamily: 'var(--font-mali)' }}>โธ่! หัวใจหมดแล้ว</p>
+        <p className="text-sm mb-8 text-slate-500 text-center">ต้องรอสักพักเพื่อให้หัวใจฟื้นฟูนะ<br/>(ฟื้นฟู 1 ดวงทุกๆ 7 นาที)</p>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { playPop(); router.push('/'); }}
+          className="btn-3d btn-3d-danger py-4 px-8 text-center text-lg shadow-xl"
+          style={{ fontFamily: 'var(--font-mali)' }}
+        >
+          กลับหน้าหลัก
+        </motion.button>
+      </div>
+    );
   }
 
   // Lesson not found

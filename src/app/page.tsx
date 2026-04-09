@@ -16,6 +16,7 @@ import StatsBar from '@/components/StatsBar';
 import LearningPath from '@/components/LearningPath';
 import BottomNav from '@/components/BottomNav';
 import Mascot from '@/components/Mascot';
+import VisitorCounter from '@/components/VisitorCounter';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { playPop } from '@/lib/soundEffects';
@@ -351,6 +352,9 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* Visitor Counter */}
+          <VisitorCounter />
         </motion.div>
       </motion.div>
     );
@@ -403,6 +407,9 @@ export default function HomePage() {
         completedLessons={userProgress?.completedLessons || []}
         loading={loadingLessons}
       />
+      
+      {/* Visitor Counter */}
+      <VisitorCounter />
       </div>
 
       <BottomNav />

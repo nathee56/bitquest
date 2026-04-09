@@ -39,6 +39,19 @@ export interface UserProfile {
   lastLoginDate: Date | null;
   consecutiveCorrect: number; // For 'Invincible Sage' badge
   photoURL?: string;
+  
+  // Gamification & Shop
+  coins: number;
+  hearts: number;         // Max 5
+  lastHeartLoss: Date | null;
+  equippedMascotStyle?: string;
+  equippedProfileFrame?: string;
+  equippedHat?: string;
+  equippedAccessory?: string;
+  unlockedMascotStyles?: string[];
+  unlockedProfileFrames?: string[];
+  unlockedHats?: string[];
+  unlockedAccessories?: string[];
 }
 
 // === User Progress (Firestore: `user_progress` collection) ===

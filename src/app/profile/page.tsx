@@ -26,7 +26,7 @@ const badgeInfo: Record<string, { emoji: string; label: string; condition: (stat
 };
 
 export default function ProfilePage() {
-  const { userProfile, userProgress, firebaseUser, signOut, resetGuestProgress } = useAuth();
+  const { userProfile, userProgress, firebaseUser, signOut, resetGuestProgress, equipItem } = useAuth();
   const router = useRouter();
 
   const currentLevel = userProfile?.currentLevel || 1;
@@ -85,18 +85,37 @@ export default function ProfilePage() {
              {/* Passport Section */}
              <div className="relative mb-12">
                 <div className="flex items-start gap-6">
-                   {/* Polaroid Photo Style Avatar */}
-                   <div className="w-32 h-36 bg-white p-2 shadow-lg -rotate-2 border border-slate-200">
-                      <div className="w-full h-[85%] bg-slate-100 overflow-hidden relative">
+                   {/* Polaroid Photo Style Avatar with Frame */}
+                   <div 
+                     className="w-32 h-36 bg-white p-2 shadow-lg -rotate-2 relative transition-all duration-300"
+                     style={{
+                       border: userProfile?.equippedProfileFrame === 'gold_frame' ? '4px solid #fbbf24' :
+                               userProfile?.equippedProfileFrame === 'neon_frame' ? '4px solid #3b82f6' : '1px solid #e2e8f0',
+                       boxShadow: userProfile?.equippedProfileFrame === 'gold_frame' ? '0 8px 24px rgba(251, 191, 36, 0.4)' :
+                                  userProfile?.equippedProfileFrame === 'neon_frame' ? '0 0 20px rgba(59, 130, 246, 0.6), inset 0 0 10px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                     }}
+                   >
+                      <div className="w-full h-[85%] bg-slate-100 overflow-hidden relative border-2 border-slate-50">
                          {userProfile?.photoURL ? (
                            <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" />
                          ) : (
-                           <div className="w-full h-full flex items-center justify-center text-5xl">🧑‍🚀</div>
+                           <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-tr from-indigo-50 to-orange-50">🧑‍🚀</div>
                          )}
-                         {/* Graphite filter overlay */}
-                         <div className="absolute inset-0 bg-indigo-500/10 mix-blend-overlay" />
+                         {/* Optional filter overlay */}
+                         <div className="absolute inset-0 bg-indigo-500/5 mix-blend-overlay" />
                       </div>
-                      <div className="mt-1 text-[8px] font-bold text-slate-400 text-center uppercase">Expedition #221</div>
+                      <div className="mt-1 text-[8px] font-bold text-slate-400 text-center uppercase whitespace-nowrap">
+                        {userProfile?.equippedProfileFrame === 'gold_frame' ? '🎫 Premium Pass' : 
+                         userProfile?.equippedProfileFrame === 'neon_frame' ? '⚡ Cyber Pass' : 'Expedition #221'}
+                      </div>
+                      
+                      {/* Frame Decorative Badges */}
+                      {userProfile?.equippedProfileFrame === 'gold_frame' && (
+                        <div className="absolute -top-3 -right-3 text-2xl drop-shadow-md float-animation object-contain">👑</div>
+                      )}
+                      {userProfile?.equippedProfileFrame === 'neon_frame' && (
+                        <div className="absolute -bottom-2 -left-2 text-2xl drop-shadow-md float-animation-delayed object-contain">💫</div>
+                      )}
                    </div>
 
                    <div className="flex-1 pt-4">
@@ -217,9 +236,125 @@ export default function ProfilePage() {
                 </div>
              </div>
 
+             {/* Inventory / Equipment */}
+             <div className="mb-12">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                   <span className="w-4 h-0.5 bg-slate-300" /> Equipment & Skins
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                   {/* Mascot Skins */}
+                   <div className="hand-drawn-border p-4 bg-white/40">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase mb-3">Mascot Skins</div>
+                      <div className="flex flex-wrap gap-2">
+                         {userProfile?.unlockedMascotStyles?.map(skin => (
+                            <button 
+                               key={skin}
+                               onClick={() => equipItem('mascot', skin)}
+                               className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                                 userProfile.equippedMascotStyle === skin 
+                                   ? 'bg-indigo-100 border-indigo-400 text-indigo-700' 
+                                   : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-200'
+                               }`}
+                            >
+                               {skin === 'default' ? '🦊 Default' : skin === 'ninja' ? '🥷 Ninja' : skin === 'king' ? '👑 King' : skin === 'ghost' ? '👻 Ghost' : skin === 'wizard' ? '🧙 Wizard' : skin}
+                            </button>
+                         ))}
+                      </div>
+                   </div>
+
+                   {/* Profile Frames */}
+                   <div className="hand-drawn-border p-4 bg-white/40">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase mb-3">Profile Frames</div>
+                      <div className="flex flex-wrap gap-2">
+                         {userProfile?.unlockedProfileFrames?.map(frame => (
+                            <button 
+                               key={frame}
+                               onClick={() => equipItem('frame', frame)}
+                               className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                                 userProfile.equippedProfileFrame === frame 
+                                   ? 'bg-amber-100 border-amber-400 text-amber-700' 
+                                   : 'bg-white border-slate-200 text-slate-500 hover:border-amber-200'
+                               }`}
+                            >
+                               {frame === 'default' ? '⚪ Default' : frame === 'gold_frame' ? '🖼️ Gold' : frame === 'neon_frame' ? '💫 Neon' : frame}
+                            </button>
+                         ))}
+                      </div>
+                   </div>
+
+                    {/* Hats */}
+                    <div className="hand-drawn-border p-4 bg-white/40">
+                       <div className="text-[10px] font-bold text-slate-500 uppercase mb-3">🎩 Hats</div>
+                       <div className="flex flex-wrap gap-2">
+                          <button 
+                             onClick={() => equipItem('hat' as any, 'none')}
+                             className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                               (!userProfile?.equippedHat || userProfile.equippedHat === 'none')
+                                 ? 'bg-rose-100 border-rose-400 text-rose-700' 
+                                 : 'bg-white border-slate-200 text-slate-500 hover:border-rose-200'
+                             }`}
+                          >
+                             ❌ None
+                          </button>
+                          {userProfile?.unlockedHats?.map(hat => (
+                             <button 
+                                key={hat}
+                                onClick={() => equipItem('hat' as any, hat)}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                                  userProfile.equippedHat === hat 
+                                    ? 'bg-rose-100 border-rose-400 text-rose-700' 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-rose-200'
+                                }`}
+                             >
+                                {hat === 'wizard_hat' ? '🧙 Wizard' : hat === 'crown' ? '👑 Crown' : hat === 'ninja_band' ? '🥷 Ninja' : hat === 'party_hat' ? '🎉 Party' : hat}
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+
+                    {/* Accessories */}
+                    <div className="hand-drawn-border p-4 bg-white/40">
+                       <div className="text-[10px] font-bold text-slate-500 uppercase mb-3">✨ Accessories</div>
+                       <div className="flex flex-wrap gap-2">
+                          <button 
+                             onClick={() => equipItem('accessory' as any, 'none')}
+                             className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                               (!userProfile?.equippedAccessory || userProfile.equippedAccessory === 'none')
+                                 ? 'bg-emerald-100 border-emerald-400 text-emerald-700' 
+                                 : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200'
+                             }`}
+                          >
+                             ❌ None
+                          </button>
+                          {userProfile?.unlockedAccessories?.map(acc => (
+                             <button 
+                                key={acc}
+                                onClick={() => equipItem('accessory' as any, acc)}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg border-2 ${
+                                  userProfile.equippedAccessory === acc 
+                                    ? 'bg-emerald-100 border-emerald-400 text-emerald-700' 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-emerald-200'
+                                }`}
+                             >
+                                {acc === 'glasses' ? '👓 Glasses' : acc === 'cool_shades' ? '😎 Shades' : acc === 'bow_tie' ? '🎀 Bow Tie' : acc === 'scarf' ? '🧣 Scarf' : acc}
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+                </div>
+             </div>
+
              {/* Settings Area (Discrete Journal Style) */}
              <div className="pt-8 mt-auto border-t border-slate-200">
                 <div className="flex flex-col gap-3">
+                   <button
+                      onClick={() => router.push('/about')}
+                      className="hand-drawn-border py-4 bg-indigo-50/50 text-indigo-700 text-sm font-black uppercase tracking-widest hover:bg-indigo-100/50 transition-colors flex items-center justify-center gap-2"
+                      style={{ fontFamily: 'var(--font-prompt)' }}
+                   >
+                      🦊 เกี่ยวกับผู้พัฒนา & สนับสนุน
+                   </button>
+
                    {!firebaseUser ? (
                      <button
                         onClick={() => router.push('/login')}
