@@ -24,7 +24,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import { UserProfile, UserProgress } from '@/lib/types';
-import { checkLevelUp, calculateStreak, EXP_DAILY_LOGIN, generateDailyQuests } from '@/lib/gamification';
+import { checkLevelUp, calculateStreak, EXP_DAILY_LOGIN, generateDailyQuests, isQuestResetReady } from '@/lib/gamification';
 
 // === Context Shape ===
 interface AuthContextType {
@@ -56,6 +56,10 @@ interface AuthContextType {
   // Quests
   updateQuestProgress: (type: 'complete_lessons' | 'perfect_combo' | 'play_boss', amount: number) => Promise<void>;
   claimQuestReward: (questId: string) => Promise<void>;
+
+  // Shop Boost
+  activateExpBoost: (durationMinutes: number) => Promise<void>;
+  refillHearts: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,6 +73,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [showDailyNotice, setShowDailyNotice] = useState(false);
 
   // ─── Fetch or create user documents in Firestore ───
+  // ─── Merge Guest data into Firebase account ───
+  const mergeGuestData = useCallback(async (user: User, existingProfile: UserProfile, existingProgress: UserProgress) => {
+    if (typeof window === 'undefined') return { profile: existingProfile, progress: existingProgress };
+    
+    const guestProfileStr = localStorage.getItem('guest_profile');
+    const guestProgressStr = localStorage.getItem('guest_progress');
+    
+    if (!guestProfileStr || !guestProgressStr) return { profile: existingProfile, progress: existingProgress };
+    
+    try {
+      const guestProfile = JSON.parse(guestProfileStr);
+      const guestProgress = JSON.parse(guestProgressStr);
+      
+      // Skip merge if guest has no meaningful progress
+      if (!guestProgress.completedLessons?.length && (guestProfile.currentEXP || 0) === 0) {
+        localStorage.removeItem('guest_profile');
+        localStorage.removeItem('guest_progress');
+        localStorage.removeItem('has_seen_first_lesson_login');
+        return { profile: existingProfile, progress: existingProgress };
+      }
+
+      // Max-merge strategy: take the higher value for each field
+      const mergedProfile: UserProfile = {
+        ...existingProfile,
+        coins: Math.max(existingProfile.coins || 0, guestProfile.coins || 0),
+        currentEXP: Math.max(existingProfile.currentEXP || 0, guestProfile.currentEXP || 0),
+        currentLevel: Math.max(existingProfile.currentLevel || 1, guestProfile.currentLevel || 1),
+        streakCount: Math.max(existingProfile.streakCount || 0, guestProfile.streakCount || 0),
+        consecutiveCorrect: Math.max(existingProfile.consecutiveCorrect || 0, guestProfile.consecutiveCorrect || 0),
+        // Union unlocked items
+        unlockedMascotStyles: [...new Set([...(existingProfile.unlockedMascotStyles || ['default']), ...(guestProfile.unlockedMascotStyles || [])])],
+        unlockedProfileFrames: [...new Set([...(existingProfile.unlockedProfileFrames || ['default']), ...(guestProfile.unlockedProfileFrames || [])])],
+        unlockedHats: [...new Set([...(existingProfile.unlockedHats || []), ...(guestProfile.unlockedHats || [])])],
+        unlockedAccessories: [...new Set([...(existingProfile.unlockedAccessories || []), ...(guestProfile.unlockedAccessories || [])])],
+      };
+
+      // Union completed lessons
+      const mergedProgress: UserProgress = {
+        uid: user.uid,
+        completedLessons: [...new Set([...(existingProgress.completedLessons || []), ...(guestProgress.completedLessons || [])])],
+      };
+
+      // Write merged data to Firestore
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        coins: mergedProfile.coins,
+        currentEXP: mergedProfile.currentEXP,
+        currentLevel: mergedProfile.currentLevel,
+        streakCount: mergedProfile.streakCount,
+        consecutiveCorrect: mergedProfile.consecutiveCorrect,
+        unlockedMascotStyles: mergedProfile.unlockedMascotStyles,
+        unlockedProfileFrames: mergedProfile.unlockedProfileFrames,
+        unlockedHats: mergedProfile.unlockedHats,
+        unlockedAccessories: mergedProfile.unlockedAccessories,
+      });
+
+      const progressRef = doc(db, 'user_progress', user.uid);
+      await updateDoc(progressRef, {
+        completedLessons: mergedProgress.completedLessons,
+      });
+
+      // Clear guest data
+      localStorage.removeItem('guest_profile');
+      localStorage.removeItem('guest_progress');
+      localStorage.removeItem('has_seen_first_lesson_login');
+      
+      console.log('✅ Guest data merged successfully!');
+      return { profile: mergedProfile, progress: mergedProgress };
+    } catch (e) {
+      console.error('Error merging guest data:', e);
+      return { profile: existingProfile, progress: existingProgress };
+    }
+  }, []);
+
   const initializeUserData = useCallback(async (user: User) => {
     try {
       // 1. Fetch or create `users` document
@@ -106,6 +184,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile.streakCount = streakResult.newStreakCount;
         profile.lastLoginDate = new Date();
 
+        const pDate = data.lastQuestRefreshDate ? data.lastQuestRefreshDate.toDate() : null;
+        if (isQuestResetReady(pDate)) {
+          profile.dailyQuests = generateDailyQuests();
+          profile.lastQuestRefreshDate = new Date();
+        } else {
+          profile.dailyQuests = data.dailyQuests || generateDailyQuests();
+          profile.lastQuestRefreshDate = pDate || new Date();
+        }
+
         // If it's a new day, award daily login bonus
         if (isNewDay) {
           const { newLevel, newEXP } = checkLevelUp(profile.currentLevel, profile.currentEXP + EXP_DAILY_LOGIN);
@@ -118,9 +205,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await updateDoc(userRef, {
           streakCount: profile.streakCount,
           lastLoginDate: Timestamp.fromDate(profile.lastLoginDate),
-           currentLevel: profile.currentLevel,
+          currentLevel: profile.currentLevel,
           currentEXP: profile.currentEXP,
           photoURL: profile.photoURL,
+          dailyQuests: profile.dailyQuests,
+          lastQuestRefreshDate: Timestamp.fromDate(profile.lastQuestRefreshDate!),
         });
       } else {
         // New user — create initial profile
@@ -167,8 +256,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      setUserProfile(profile);
-
       // 2. Fetch or create `user_progress` document
       const progressRef = doc(db, 'user_progress', user.uid);
       const progressSnap = await getDoc(progressRef);
@@ -192,11 +279,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
+      // 3. Merge guest data if available
+      const merged = await mergeGuestData(user, profile, progress);
+      profile = merged.profile;
+      progress = merged.progress;
+
+      setUserProfile(profile);
       setUserProgress(progress);
     } catch (error) {
       console.error('Error initializing user data:', error);
     }
-  }, []);
+  }, [mergeGuestData]);
 
   // ─── Listen to Firebase Auth state ───
   useEffect(() => {
@@ -230,9 +323,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { newLevel, newEXP } = checkLevelUp(profile.currentLevel, profile.currentEXP + EXP_DAILY_LOGIN);
             profile.currentLevel = newLevel;
             profile.currentEXP = newEXP;
+            setShowDailyNotice(true);
+          }
+
+          const qDate = rawProfile.lastQuestRefreshDate ? new Date(rawProfile.lastQuestRefreshDate) : null;
+          if (isQuestResetReady(qDate)) {
             profile.dailyQuests = generateDailyQuests();
             profile.lastQuestRefreshDate = new Date();
-            setShowDailyNotice(true);
+          } else {
+            profile.dailyQuests = rawProfile.dailyQuests || generateDailyQuests();
+            profile.lastQuestRefreshDate = qDate || new Date();
           }
 
           localStorage.setItem('guest_profile', JSON.stringify(profile));
@@ -415,7 +515,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { didLevelUp: false, newLevel: 0 };
     }
 
-    const totalEXP = userProfile.currentEXP + amount;
+    // Check EXP Boost
+    let finalAmount = amount;
+    if (userProfile.expBoostUntil && new Date(userProfile.expBoostUntil) > new Date()) {
+      finalAmount = amount * 2;
+    }
+
+    const totalEXP = userProfile.currentEXP + finalAmount;
     const { newLevel, newEXP, didLevelUp } = checkLevelUp(userProfile.currentLevel, totalEXP);
 
     // Update local state immediately for responsive UI
@@ -516,6 +622,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('guest_profile');
       localStorage.removeItem('guest_progress');
+      localStorage.removeItem('has_seen_first_lesson_login');
     }
     setUserProfile({
       uid: 'guest',
@@ -537,6 +644,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       equippedProfileFrame: 'default',
       equippedHat: 'none',
       equippedAccessory: 'none',
+      photoURL: '',
+      dailyQuests: generateDailyQuests(),
+      lastQuestRefreshDate: new Date(),
     });
     setUserProgress({
       uid: 'guest',
@@ -546,36 +656,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Gamification & Shop Methods ───
   const deductHeart = useCallback(async () => {
-    if (!userProfile || userProfile.hearts <= 0) return;
-    const newHearts = userProfile.hearts - 1;
-    const newLastLoss = userProfile.hearts === 5 ? new Date() : userProfile.lastHeartLoss;
-    
-    const updated = { ...userProfile, hearts: newHearts, lastHeartLoss: newLastLoss };
-    setUserProfile(updated);
-    
-    if (firebaseUser && db) {
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      await updateDoc(userRef, { hearts: newHearts, lastHeartLoss: newLastLoss ? Timestamp.fromDate(newLastLoss) : null });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(updated));
-    }
-  }, [userProfile, firebaseUser]);
+    setUserProfile(prev => {
+      if (!prev || prev.hearts <= 0) return prev;
+      const newHearts = prev.hearts - 1;
+      const newLastLoss = prev.hearts === 5 ? new Date() : prev.lastHeartLoss;
+      const updated = { ...prev, hearts: newHearts, lastHeartLoss: newLastLoss };
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { hearts: newHearts, lastHeartLoss: newLastLoss ? Timestamp.fromDate(newLastLoss) : null });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
 
   const addCoins = useCallback(async (amount: number) => {
-    if (!userProfile) return;
-    const updated = { ...userProfile, coins: userProfile.coins + amount };
-    setUserProfile(updated);
-    if (firebaseUser && db) {
-      await updateDoc(doc(db, 'users', firebaseUser.uid), { coins: updated.coins });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(updated));
-    }
-  }, [userProfile, firebaseUser]);
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, coins: prev.coins + amount };
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { coins: updated.coins });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
 
   const spendCoins = useCallback(async (amount: number) => {
+    let success = false;
+    
+    // We cannot use functional update sequentially if we need to return `success` synchronously 
+    // based on the previous state. Instead, we use a Promise / async wrapper.
     if (!userProfile || userProfile.coins < amount) return false;
+    
     const updated = { ...userProfile, coins: userProfile.coins - amount };
     setUserProfile(updated);
+    
     if (firebaseUser && db) {
       await updateDoc(doc(db, 'users', firebaseUser.uid), { coins: updated.coins });
     } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
@@ -585,102 +704,119 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [userProfile, firebaseUser]);
 
   const unlockItem = useCallback(async (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => {
-    if (!userProfile) return;
-    let updated = { ...userProfile };
-    if (type === 'mascot' && !userProfile.unlockedMascotStyles?.includes(id)) {
-      updated.unlockedMascotStyles = [...(userProfile.unlockedMascotStyles || []), id];
-    } else if (type === 'frame' && !userProfile.unlockedProfileFrames?.includes(id)) {
-      updated.unlockedProfileFrames = [...(userProfile.unlockedProfileFrames || []), id];
-    } else if (type === 'hat' && !userProfile.unlockedHats?.includes(id)) {
-      updated.unlockedHats = [...(userProfile.unlockedHats || []), id];
-    } else if (type === 'accessory' && !userProfile.unlockedAccessories?.includes(id)) {
-      updated.unlockedAccessories = [...(userProfile.unlockedAccessories || []), id];
-    } else {
-      return;
-    }
-    setUserProfile(updated);
-    if (firebaseUser && db) {
-      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
-        unlockedMascotStyles: updated.unlockedMascotStyles,
-        unlockedProfileFrames: updated.unlockedProfileFrames,
-        unlockedHats: updated.unlockedHats,
-        unlockedAccessories: updated.unlockedAccessories,
-      });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(updated));
-    }
-  }, [userProfile, firebaseUser]);
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      let updated = { ...prev };
+      
+      let hasChange = false;
+      if (type === 'mascot' && !prev.unlockedMascotStyles?.includes(id)) {
+        updated.unlockedMascotStyles = [...(prev.unlockedMascotStyles || []), id];
+        hasChange = true;
+      } else if (type === 'frame' && !prev.unlockedProfileFrames?.includes(id)) {
+        updated.unlockedProfileFrames = [...(prev.unlockedProfileFrames || []), id];
+        hasChange = true;
+      } else if (type === 'hat' && !prev.unlockedHats?.includes(id)) {
+        updated.unlockedHats = [...(prev.unlockedHats || []), id];
+        hasChange = true;
+      } else if (type === 'accessory' && !prev.unlockedAccessories?.includes(id)) {
+        updated.unlockedAccessories = [...(prev.unlockedAccessories || []), id];
+        hasChange = true;
+      }
+      
+      if (!hasChange) return prev;
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { 
+          unlockedMascotStyles: updated.unlockedMascotStyles,
+          unlockedProfileFrames: updated.unlockedProfileFrames,
+          unlockedHats: updated.unlockedHats,
+          unlockedAccessories: updated.unlockedAccessories,
+        });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
 
   const equipItem = useCallback(async (type: 'mascot' | 'frame' | 'hat' | 'accessory', id: string) => {
-    if (!userProfile) return;
-    let updated = { ...userProfile };
-    if (type === 'mascot') updated.equippedMascotStyle = id;
-    if (type === 'frame') updated.equippedProfileFrame = id;
-    if (type === 'hat') updated.equippedHat = id;
-    if (type === 'accessory') updated.equippedAccessory = id;
-    
-    setUserProfile(updated);
-    if (firebaseUser && db) {
-      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
-        equippedMascotStyle: updated.equippedMascotStyle,
-        equippedProfileFrame: updated.equippedProfileFrame,
-        equippedHat: updated.equippedHat,
-        equippedAccessory: updated.equippedAccessory,
-      });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(updated));
-    }
-  }, [userProfile, firebaseUser]);
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      let updated = { ...prev };
+      if (type === 'mascot') updated.equippedMascotStyle = id;
+      if (type === 'frame') updated.equippedProfileFrame = id;
+      if (type === 'hat') updated.equippedHat = id;
+      if (type === 'accessory') updated.equippedAccessory = id;
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { 
+          equippedMascotStyle: updated.equippedMascotStyle,
+          equippedProfileFrame: updated.equippedProfileFrame,
+          equippedHat: updated.equippedHat,
+          equippedAccessory: updated.equippedAccessory,
+        });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
 
   // ─── Quests ───
   const updateQuestProgress = useCallback(async (type: 'complete_lessons' | 'perfect_combo' | 'play_boss', amount: number) => {
-    if (!userProfile || !userProfile.dailyQuests) return;
-    
-    let updated = false;
-    const newQuests = userProfile.dailyQuests.map(q => {
-      if (q.type === type && !q.completed) {
-        const newProgress = Math.min(q.goal, q.progress + amount);
-        if (newProgress !== q.progress) updated = true;
-        return { ...q, progress: newProgress, completed: newProgress >= q.goal };
+    setUserProfile(prev => {
+      if (!prev || !prev.dailyQuests) return prev;
+      
+      let updated = false;
+      const newQuests = prev.dailyQuests.map(q => {
+        if (q.type === type && !q.completed) {
+          const newProgress = Math.min(q.goal, q.progress + amount);
+          if (newProgress !== q.progress) updated = true;
+          return { ...q, progress: newProgress, completed: newProgress >= q.goal };
+        }
+        return q;
+      });
+
+      if (!updated) return prev;
+
+      const newProfile = { ...prev, dailyQuests: newQuests };
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { dailyQuests: newQuests });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(newProfile));
       }
-      return q;
+      
+      return newProfile;
     });
-
-    if (!updated) return;
-
-    const newProfile = { ...userProfile, dailyQuests: newQuests };
-    setUserProfile(newProfile);
-
-    if (firebaseUser && db) {
-      await updateDoc(doc(db, 'users', firebaseUser.uid), { dailyQuests: newQuests });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(newProfile));
-    }
-  }, [userProfile, firebaseUser]);
+  }, [firebaseUser]);
 
   const claimQuestReward = useCallback(async (questId: string) => {
-    if (!userProfile || !userProfile.dailyQuests) return;
+    setUserProfile(prev => {
+      if (!prev || !prev.dailyQuests) return prev;
 
-    const quest = userProfile.dailyQuests.find(q => q.id === questId);
-    if (!quest || !quest.completed || quest.claimed) return;
+      const quest = prev.dailyQuests.find(q => q.id === questId);
+      if (!quest || !quest.completed || quest.claimed) return prev;
 
-    const newQuests = userProfile.dailyQuests.map(q => 
-      q.id === questId ? { ...q, claimed: true } : q
-    );
+      const newQuests = prev.dailyQuests.map(q => 
+        q.id === questId ? { ...q, claimed: true } : q
+      );
 
-    const newCoins = userProfile.coins + quest.rewardCoins;
-    const newProfile = { ...userProfile, dailyQuests: newQuests, coins: newCoins };
-    setUserProfile(newProfile);
-
-    if (firebaseUser && db) {
-      await updateDoc(doc(db, 'users', firebaseUser.uid), { 
-        dailyQuests: newQuests,
-        coins: newCoins 
-      });
-    } else if (userProfile.uid === 'guest' && typeof window !== 'undefined') {
-      localStorage.setItem('guest_profile', JSON.stringify(newProfile));
-    }
-  }, [userProfile, firebaseUser]);
+      const newCoins = prev.coins + quest.rewardCoins;
+      const newProfile = { ...prev, dailyQuests: newQuests, coins: newCoins };
+      
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { 
+          dailyQuests: newQuests,
+          coins: newCoins 
+        });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(newProfile));
+      }
+      
+      return newProfile;
+    });
+  }, [firebaseUser]);
 
   // ─── Heart Regeneration ───
   useEffect(() => {
@@ -711,6 +847,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [userProfile, firebaseUser]);
 
+  // ─── Activate EXP Boost ───
+  const activateExpBoost = useCallback(async (durationMinutes: number) => {
+    const boostUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, expBoostUntil: boostUntil };
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { expBoostUntil: Timestamp.fromDate(boostUntil) });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
+
+  // ─── Refill Hearts ───
+  const refillHearts = useCallback(async () => {
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, hearts: 5, lastHeartLoss: null };
+      if (firebaseUser && db) {
+        updateDoc(doc(db, 'users', firebaseUser.uid), { hearts: 5, lastHeartLoss: null });
+      } else if (prev.uid === 'guest' && typeof window !== 'undefined') {
+        localStorage.setItem('guest_profile', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  }, [firebaseUser]);
+
   // ─── Context Value ───
   const value: AuthContextType = {
     firebaseUser,
@@ -734,6 +899,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     equipItem,
     updateQuestProgress,
     claimQuestReward,
+    activateExpBoost,
+    refillHearts,
   };
 
   return (

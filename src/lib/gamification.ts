@@ -74,27 +74,38 @@ export function calculateStreak(
   }
 }
 
-// === Daily Quests System ===
+// === Daily Quests System (Fixed Daily + 1:00 AM Reset) ===
 
-const QUEST_POOL: Omit<DailyQuest, 'id' | 'progress' | 'completed' | 'claimed'>[] = [
-  { type: 'complete_lessons', title: 'เรียนจบ 2 บทเรียน', goal: 2, rewardCoins: 30 },
-  { type: 'complete_lessons', title: 'เรียนจบ 3 บทเรียน', goal: 3, rewardCoins: 50 },
-  { type: 'perfect_combo', title: 'ตอบถูกติดกัน 3 ครั้ง', goal: 3, rewardCoins: 20 },
-  { type: 'perfect_combo', title: 'ตอบถูกติดกัน 5 ครั้ง', goal: 5, rewardCoins: 40 },
-  { type: 'play_boss', title: 'ท้าทายบอส 1 ครั้ง', goal: 1, rewardCoins: 25 },
-  { type: 'play_boss', title: 'สู้บอส 3 ครั้ง', goal: 3, rewardCoins: 60 },
-];
+export function isQuestResetReady(lastRefreshDate: Date | null): boolean {
+  if (!lastRefreshDate) return true;
+  
+  const now = new Date();
+  const lastResetTime = new Date(now);
+  lastResetTime.setHours(1, 0, 0, 0); // 1:00 AM
+  
+  // If current time is before 1:00 AM today, the most recent reset was yesterday at 1:00 AM
+  if (now < lastResetTime) {
+    lastResetTime.setDate(lastResetTime.getDate() - 1);
+  }
+  
+  // If the last refresh was before the most recent 1:00 AM, then reset!
+  return lastRefreshDate < lastResetTime;
+}
 
 export function generateDailyQuests(): DailyQuest[] {
-  // Shuffle pool and pick 3
-  const shuffled = [...QUEST_POOL].sort(() => 0.5 - Math.random());
-  const selected = shuffled.slice(0, 3);
+  // Static daily quests specified by user
+  const dailyQuests: Omit<DailyQuest, 'id' | 'progress' | 'completed' | 'claimed'>[] = [
+    { type: 'complete_lessons', title: 'เรียนจบ 2 บทเรียน', goal: 2, rewardCoins: 30 },
+    { type: 'perfect_combo', title: 'ตอบถูกติดกัน 3 ครั้ง', goal: 3, rewardCoins: 20 },
+    { type: 'play_boss', title: 'ท้าทายบอส 1 ครั้ง', goal: 1, rewardCoins: 25 },
+  ];
   
-  return selected.map(q => ({
+  return dailyQuests.map((q, i) => ({
     ...q,
-    id: `quest_${Math.random().toString(36).substr(2, 9)}`,
+    id: `daily_${i}`,
     progress: 0,
     completed: false,
     claimed: false,
   }));
 }
+

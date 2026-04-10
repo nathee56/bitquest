@@ -104,10 +104,10 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col relative overflow-hidden"
+      className="min-h-screen flex flex-col md:flex-row relative overflow-hidden"
       style={{ backgroundColor: 'var(--color-lime-cream)' }}
     >
-      {/* Decorative background blobs */}
+      {/* Decorative background blobs (Shared) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <motion.div
           animate={{ y: [0, -20, 0], x: [0, 10, 0] }}
@@ -121,226 +121,191 @@ export default function LoginPage() {
           className="absolute top-1/2 -left-16 w-56 h-56 rounded-full opacity-30"
           style={{ background: 'radial-gradient(circle, rgba(167, 139, 250, 0.5) 0%, transparent 60%)' }}
         />
-        <motion.div
-          animate={{ y: [0, -12, 0] }}
-          transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
-          className="absolute bottom-20 right-0 w-48 h-48 rounded-full opacity-30"
-          style={{ background: 'radial-gradient(circle, rgba(255, 154, 118, 0.5) 0%, transparent 60%)' }}
-        />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Logo & Title */}
+      {/* --- LEFT PANEL: PC Visuals --- */}
+      <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 bg-white relative overflow-hidden">
+        {/* Shimmering Grid Pattern */}
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(#e8734a 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-indigo-50/50" />
+        
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut', type: 'spring', stiffness: 200, damping: 20 }}
-          className="text-center mb-10 w-full"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1, type: 'spring' }}
+          className="relative z-10 text-center"
         >
-          {/* Logo icon */}
           <motion.div
-            animate={{ y: [0, -8, 0] }}
+            animate={{ y: [0, -15, 0] }}
             transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-            className="inline-block mb-3 relative"
+            className="inline-block relative mb-8"
           >
-            <div className="absolute inset-0 bg-white blur-xl rounded-full opacity-50 shadow-[0_0_40px_rgba(255,180,0,0.4)]" />
-            <img
-              src="/logo.png"
-              alt="BitQuest Logo"
-              className="w-32 h-32 mx-auto object-contain drop-shadow-2xl relative z-10"
-            />
+            <div className="absolute inset-0 bg-orange-200/40 blur-3xl rounded-full" />
+            <img src="/logo.png" alt="BitQuest Logo" className="w-64 h-64 object-contain relative z-10" />
           </motion.div>
-
-          <h1
-            className="text-5xl font-black mb-1"
-            style={{ fontFamily: 'var(--font-mali)', color: '#1e293b', textShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-          >
+          
+          <h2 className="text-6xl font-black mb-4 tracking-tighter" style={{ fontFamily: 'var(--font-mali)', color: '#1e293b' }}>
             BitQuest
-          </h1>
-          <p
-            className="text-[15px] font-bold tracking-wide"
-            style={{ fontFamily: 'var(--font-prompt)', color: '#64748b' }}
-          >
-            เรียนรู้ทีละนิด เก่งขึ้นทุกวัน ✨
+          </h2>
+          <p className="text-xl font-medium text-slate-500 max-w-sm mx-auto leading-relaxed" style={{ fontFamily: 'var(--font-prompt)' }}>
+            พร้อมที่จะเลเวลอัพ <br /> ความรู้ประวัติศาสตร์ของคุณหรือยัง? ⚔️
           </p>
         </motion.div>
 
-        {/* Google Sign In Button */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 20 }}
-          className="w-full max-w-[320px] mb-6"
-        >
-          <button
-            onClick={handleGoogleSignIn}
-            className="btn-3d btn-3d-white w-full py-4 text-sm font-bold gap-3"
-            style={{ fontFamily: 'var(--font-prompt)' }}
+        {/* Floating Game Icons */}
+        <div className="absolute inset-0 pointer-events-none">
+           <motion.div animate={{ y: [0, -20, 0] }} transition={{ repeat: Infinity, duration: 3 }} className="absolute top-[20%] left-[20%] text-6xl">⚔️</motion.div>
+           <motion.div animate={{ y: [0, 20, 0] }} transition={{ repeat: Infinity, duration: 4 }} className="absolute bottom-[20%] right-[15%] text-6xl">🪙</motion.div>
+           <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 5 }} className="absolute top-[15%] right-[25%] text-4xl">✨</motion.div>
+        </div>
+      </div>
+
+      {/* --- RIGHT PANEL / MOBILE VIEW: Form --- */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
+        <div className="w-full max-w-[400px]">
+          
+          {/* Mobile Header (Hidden on PC) */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="md:hidden text-center mb-10 w-full"
           >
-            {/* Google Icon */}
-            <svg width="22" height="22" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            เข้าสู่ระบบด้วยบัญชี Google
-          </button>
-        </motion.div>
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+              className="inline-block mb-3 relative"
+            >
+              <div className="absolute inset-0 bg-white blur-xl rounded-full opacity-50" />
+              <img src="/logo.png" alt="Logo" className="w-24 h-24 mx-auto object-contain relative z-10" />
+            </motion.div>
+            <h1 className="text-4xl font-black mb-1" style={{ fontFamily: 'var(--font-mali)', color: '#1e293b' }}>BitQuest</h1>
+            <p className="text-sm font-bold text-slate-500" style={{ fontFamily: 'var(--font-prompt)' }}>เรียนรู้ได้สนุก ทุกที่ ทุกเวลา 🐥</p>
+          </motion.div>
 
-        {/* Divider */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="w-full max-w-[320px] flex items-center gap-4 mb-6"
-        >
-          <div className="flex-1 h-px bg-slate-300 opacity-60" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400" style={{ fontFamily: 'var(--font-prompt)' }}>
-            หรือใช้อีเมล
-          </span>
-          <div className="flex-1 h-px bg-slate-300 opacity-60" />
-        </motion.div>
+          <div className="glass-card p-2 md:p-8 md:bg-white/80 md:backdrop-blur-2xl md:border-2 md:border-white md:shadow-2xl md:rounded-[40px] border-none bg-transparent shadow-none">
+            <div className="text-center mb-8 hidden md:block">
+               <h3 className="text-2xl font-black text-slate-800" style={{ fontFamily: 'var(--font-mali)' }}>ยินดีต้อนรับกลับมา!</h3>
+               <p className="text-sm text-slate-500 font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>เข้าสู่โลกแห่งการผจญภัยด้านความรู้</p>
+            </div>
 
-        {/* Email Form */}
-        <motion.form
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.5 }}
-          onSubmit={handleEmailSubmit}
-          className="w-full max-w-[320px] bg-white/80 backdrop-blur-xl p-5 rounded-3xl border-2 border-white shadow-xl"
-        >
-          {/* Display Name (Sign Up only) */}
-          <AnimatePresence>
-            {isSignUp && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-4 overflow-hidden"
+            {/* Google Sign In Button */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8"
+            >
+              <button
+                onClick={handleGoogleSignIn}
+                className="btn-3d btn-3d-white w-full py-4 text-sm font-bold gap-3"
+                style={{ fontFamily: 'var(--font-prompt)' }}
               >
-                <div className="text-[11px] font-bold text-slate-500 mb-1.5 uppercase ml-1" style={{ fontFamily: 'var(--font-prompt)' }}>ชื่อในเกม</div>
+                <svg width="22" height="22" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
+              </button>
+            </motion.div>
+
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">or use email</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+
+            {/* Email Form */}
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <AnimatePresence>
+                {isSignUp && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Display Name</label>
+                    <input
+                      type="text"
+                      placeholder="เช่น นักรบแห่งแสง"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-blue-400 transition-all font-medium text-sm"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Email</label>
                 <input
-                  type="text"
-                  placeholder="เช่น นักรบแห่งแสง"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                  style={{
-                    fontFamily: 'var(--font-prompt)',
-                    backgroundColor: '#f8fafc',
-                    border: '2px solid #e2e8f0',
-                    color: '#0f172a',
-                  }}
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-blue-400 transition-all font-medium text-sm"
                 />
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
 
-          <div className="mb-4">
-            <div className="text-[11px] font-bold text-slate-500 mb-1.5 uppercase ml-1" style={{ fontFamily: 'var(--font-prompt)' }}>อีเมล</div>
-            <input
-              type="email"
-              placeholder="อีเมลของคุณ"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-              style={{
-                fontFamily: 'var(--font-prompt)',
-                backgroundColor: '#f8fafc',
-                border: '2px solid #e2e8f0',
-                color: '#0f172a',
-              }}
-            />
-          </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-blue-400 transition-all font-medium text-sm"
+                />
+              </div>
 
-          <div className="mb-6">
-            <div className="text-[11px] font-bold text-slate-500 mb-1.5 uppercase ml-1" style={{ fontFamily: 'var(--font-prompt)' }}>รหัสผ่าน</div>
-            <input
-              type="password"
-              placeholder="รหัสผ่าน 6 ตัวขึ้นไป"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-3.5 rounded-2xl text-sm outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-              style={{
-                fontFamily: 'var(--font-prompt)',
-                backgroundColor: '#f8fafc',
-                border: '2px solid #e2e8f0',
-                color: '#0f172a',
-              }}
-            />
-          </div>
+              {error && (
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-500 text-xs font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>
+                  {error}
+                </div>
+              )}
 
-          {/* Error message */}
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="mb-4 px-4 py-3 rounded-2xl text-sm"
-                style={{
-                  fontFamily: 'var(--font-prompt)',
-                  backgroundColor: 'var(--color-quiz-incorrect-bg)',
-                  color: 'var(--color-quiz-incorrect)',
-                  border: '1px solid rgba(248, 113, 113, 0.2)',
-                }}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="btn-3d btn-3d-primary w-full py-4 text-white text-lg mt-2"
+                style={{ fontFamily: 'var(--font-mali)' }}
               >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {isSubmitting ? 'กำลังโหลด...' : (isSignUp ? '✨ สร้างบัญชี' : '⚡ เข้าสู่ระบบ')}
+              </button>
+            </form>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-3d btn-3d-primary w-full py-4 text-base tracking-wide mt-2"
-            style={{ fontFamily: 'var(--font-mali)' }}
-          >
-            {isSubmitting ? 'กำลังโหลด...' : (isSignUp ? '✨ สร้างไอดีนักผจญภัย' : '⚡ เข้าสู่ระบบ')}
-          </button>
-        </motion.form>
+            {/* Toggle Sign In / Sign Up */}
+            <div className="mt-8 text-center bg-slate-50 rounded-2xl p-4">
+              <button
+                onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+                className="text-xs font-bold text-slate-500"
+                style={{ fontFamily: 'var(--font-prompt)' }}
+              >
+                {isSignUp ? (
+                  <>มีบัญชีอยู่แล้ว? <span className="text-blue-600 underline underline-offset-4">เข้าสู่ระบบ</span></>
+                ) : (
+                  <>ยังไม่มีบัญชี? <span className="text-blue-600 underline underline-offset-4">สมัครสมาชิกฟรี</span></>
+                )}
+              </button>
+            </div>
+          </div>
 
-        {/* Toggle Sign In / Sign Up */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 text-center bg-white/60 backdrop-blur-md px-6 py-3 rounded-full shadow-sm"
-        >
-          <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            className="text-sm font-bold transition-transform active:scale-95"
-            style={{ fontFamily: 'var(--font-prompt)', color: '#475569' }}
-          >
-            {isSignUp ? (
-              <>มีบัญชีอยู่แล้ว? <span className="text-blue-600 underline underline-offset-4">เข้าสู่ระบบที่นี่</span></>
-            ) : (
-              <>เพิ่งมาครั้งแรกหรอ? <span className="text-blue-600 underline underline-offset-4">สมัครสมาชิกฟรีนะ!</span></>
-            )}
-          </button>
-        </motion.div>
-
-        {/* Guest Start Notice */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-6 text-center"
-        >
-          <button
-            onClick={() => router.push('/')}
-            className="text-xs font-bold px-5 py-2.5 rounded-full transition-all bg-white/50 text-slate-500 hover:bg-white/80 active:scale-95"
-            style={{ fontFamily: 'var(--font-prompt)' }}
-          >
-            ← ทดลองเล่นแบบไม่ล็อกอิน (Guest)
-          </button>
-        </motion.div>
+          {/* Guest Start Notice */}
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => router.push('/')}
+              className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              style={{ fontFamily: 'var(--font-prompt)' }}
+            >
+              ← กลับไปหน้าหลัก (Guest Mode)
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
@@ -348,7 +313,7 @@ export default function LoginPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="text-center pb-8"
+        className="text-center pb-8 w-full absolute bottom-0 md:static"
       >
         <p className="text-xs" style={{ fontFamily: 'var(--font-prompt)', color: 'var(--color-text-muted)' }}>
           BitQuest © 2026 — Level Up Your Knowledge 🎮

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import SideNav from "@/components/SideNav";
+import PrimaryNavbar from "@/components/PrimaryNavbar";
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
@@ -25,9 +25,9 @@ export default function RootLayout({
     <html lang="th">
       <body>
         <AuthProvider>
-          <div className="flex flex-col md:flex-row min-h-screen">
-            <SideNav />
-            <main className="flex-1 md:ml-64 relative w-full overflow-x-hidden">
+          <div className="flex flex-col min-h-screen">
+            <PrimaryNavbar />
+            <main className="flex-1 transition-all relative w-full overflow-x-hidden pt-0 md:pt-20">
               {children}
             </main>
           </div>

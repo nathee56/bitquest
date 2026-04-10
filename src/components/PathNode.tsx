@@ -22,6 +22,8 @@ const subjectColors: Record<SubjectType, string> = {
   'ภาษาอังกฤษ': '#60a5fa',
   'สังคมศึกษา': '#fbbf24',
   'ความรู้ทั่วไป': '#34d399', // Emerald color
+  'วิทยาศาสตร์': '#10b981', // Emerald
+  'การเงิน': '#eab308', // Yellow
 };
 
 const subjectEmoji: Record<SubjectType, string> = {
@@ -29,6 +31,8 @@ const subjectEmoji: Record<SubjectType, string> = {
   'ภาษาอังกฤษ': '📖',
   'สังคมศึกษา': '⚖️',
   'ความรู้ทั่วไป': '💡',
+  'วิทยาศาสตร์': '🔬',
+  'การเงิน': '💸',
 };
 
 export default function PathNode({ lesson, status, position, isBoss = false }: PathNodeProps) {
@@ -105,18 +109,22 @@ export default function PathNode({ lesson, status, position, isBoss = false }: P
       {/* Tooltip Popover */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop click to close */}
-            <div 
-              className="fixed inset-0 z-[60]" 
-              onClick={() => setIsOpen(false)} 
-            />
-            
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 10 }}
-              className="absolute bottom-full mb-6 z-[70] w-64 glass-card p-5 text-center shadow-2xl"
+          <motion.div 
+            key={`backdrop-${lesson.id}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60]" 
+            onClick={() => setIsOpen(false)} 
+          />
+        )}
+        {isOpen && (
+          <motion.div
+            key={`popover-${lesson.id}`}
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            className="absolute bottom-full mb-6 z-[70] w-64 glass-card p-5 text-center shadow-2xl"
               style={{ borderRadius: '24px' }}
             >
               <div 
@@ -156,7 +164,6 @@ export default function PathNode({ lesson, status, position, isBoss = false }: P
                 style={{ backgroundColor: 'white', marginTop: '-8px' }}
               />
             </motion.div>
-          </>
         )}
       </AnimatePresence>
     </div>

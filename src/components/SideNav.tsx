@@ -65,46 +65,60 @@ export default function SideNav() {
   const pathname = usePathname();
 
   return (
-    <div className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 border-r"
+    <div className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 border-r overflow-hidden shadow-[10px_0_30px_rgba(0,0,0,0.02)]"
          style={{
-           backgroundColor: 'var(--color-lime-cream)',
-           borderColor: 'rgba(0,0,0,0.05)',
+           backgroundColor: 'rgba(245, 247, 232, 0.85)', // var(--color-lime-cream) with opacity
+           backdropFilter: 'blur(16px)',
+           borderColor: 'rgba(0,0,0,0.06)',
            zIndex: 50,
          }}
     >
-      <div className="p-6">
-        <div 
-          className="flex items-center gap-3 mb-8" 
-        >
-          <Image
-            src="/logo.png"
-            alt="BitQuest Logo"
-            width={140}
-            height={70}
-            className="object-contain"
-          />
-        </div>
-        <p className="text-xs mt-2 font-medium" style={{ color: 'var(--color-text-muted)' }}>เรียนรู้เงียบๆ เติบโตเจี๊ยบๆ 🐥</p>
+      {/* Top Banner / Logo */}
+      <div className="p-8 pb-4">
+        <Link href="/" className="block group">
+          <div className="relative">
+            <div className="absolute -inset-4 bg-orange-100/50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Image
+              src="/logo.png"
+              alt="BitQuest Logo"
+              width={160}
+              height={80}
+              className="object-contain relative z-10 transition-transform group-hover:scale-105"
+            />
+          </div>
+          <p className="text-[10px] mt-3 font-black uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-prompt)' }}>
+            Explorer Edition
+          </p>
+        </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2">
+      {/* Navigation List */}
+      <nav className="flex-1 px-4 py-8 space-y-1">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} className="block relative">
+              {/* Active Indicator Bar */}
+              {isActive && (
+                <motion.div 
+                  layoutId="active-nav-bar"
+                  className="absolute left-0 top-2 bottom-2 w-1.5 bg-orange-500 rounded-r-full shadow-[2px_0_10px_rgba(232,115,74,0.3)]"
+                />
+              )}
+              
               <motion.div
-                whileHover={{ x: 4 }}
+                whileHover={{ x: 6, backgroundColor: isActive ? 'rgba(232, 115, 74, 0.12)' : 'rgba(0,0,0,0.03)' }}
                 whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-4 px-4 py-3 rounded-2xl transition-colors"
+                className={`flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 ${isActive ? 'shadow-sm' : ''}`}
                 style={{
-                  backgroundColor: isActive ? 'rgba(232, 115, 74, 0.1)' : 'transparent',
+                  backgroundColor: isActive ? 'rgba(232, 115, 74, 0.08)' : 'transparent',
                 }}
               >
-                <div className="relative">
+                <div className={`relative transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(232,115,74,0.4)]' : ''}`}>
                   {item.icon(isActive)}
                 </div>
                 <span
-                  className="font-medium"
+                  className={`font-bold text-sm transition-colors duration-300`}
                   style={{
                     fontFamily: 'var(--font-prompt)',
                     color: isActive ? 'var(--color-burnt-orange)' : 'var(--color-text-secondary)',
@@ -112,23 +126,53 @@ export default function SideNav() {
                 >
                   {item.label}
                 </span>
+                
+                {isActive && (
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-500"
+                  />
+                )}
               </motion.div>
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom Section with Dark Mode and Quote */}
-      <div className="p-6 mt-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)', fontFamily: 'var(--font-prompt)' }}>โหมดกลางคืน</span>
+      {/* Bottom Section: Mascot & Dark Mode */}
+      <div className="p-6 mt-auto">
+        {/* Dark Mode Toggle Area */}
+        <div className="flex items-center justify-between mb-8 px-2">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Appearance</span>
+            <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)', fontFamily: 'var(--font-prompt)' }}>Dark Theme</span>
+          </div>
           <DarkModeToggle />
         </div>
-        <div className="glass-card p-4 rounded-2xl text-center">
-            <div className="text-3xl mb-2">💡</div>
-            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                "การเรียนรู้ วันละนิด ดีกว่าการยัดเยียด ในวันเดียว"
-            </p>
+
+        {/* Mascot Message Widget */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-br from-orange-200 to-indigo-200 rounded-3xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
+          <div className="relative glass-card p-5 rounded-3xl border-white/50 bg-white/40 overflow-hidden">
+             <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-xl shadow-inner">💡</div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-orange-600">Daily Tip</span>
+             </div>
+             <p className="text-[11px] leading-relaxed font-medium italic opacity-70" style={{ color: 'var(--color-text-primary)' }}>
+                 "การเรียนรู้ วันละนิด ดีกว่าการยัดเยียด ในวันเดียว"
+             </p>
+             
+             {/* Decorative Background Icon */}
+             <div className="absolute -right-2 -bottom-2 text-4xl opacity-5 grayscale">🦊</div>
+          </div>
+        </div>
+        
+        {/* App Version / Tagline */}
+        <div className="mt-8 text-center">
+           <p className="text-[9px] font-bold tracking-widest opacity-30 uppercase" style={{ fontFamily: 'var(--font-prompt)' }}>
+             BitQuest v2.0 • Build 2024
+           </p>
         </div>
       </div>
     </div>

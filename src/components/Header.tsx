@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import DarkModeToggle from './DarkModeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { Bell } from 'lucide-react';
+import NotificationModal from './NotificationModal';
 
 interface HeaderProps {
   displayName: string;
@@ -12,6 +15,7 @@ interface HeaderProps {
 
 export default function Header({ displayName }: HeaderProps) {
   const { userProfile } = useAuth();
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const level = userProfile?.currentLevel || 1;
   const streak = userProfile?.streakCount || 0;
@@ -42,7 +46,17 @@ export default function Header({ displayName }: HeaderProps) {
         </div>
 
         {/* Action Toggles */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowNotifications(true)}
+            className="relative p-2 rounded-full bg-slate-100/80 text-slate-600 hover:bg-slate-200 hover:text-indigo-600 transition-colors"
+          >
+            <Bell size={20} />
+            <span className="absolute top-1 right-1.5 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+          </button>
           <DarkModeToggle />
         </div>
       </div>
@@ -99,6 +113,12 @@ export default function Header({ displayName }: HeaderProps) {
         </motion.div>
 
       </div>
+
+      {/* Notification Modal */}
+      <NotificationModal 
+        isOpen={showNotifications} 
+        onClose={() => setShowNotifications(false)} 
+      />
     </motion.header>
   );
 }

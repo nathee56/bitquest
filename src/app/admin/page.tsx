@@ -24,6 +24,9 @@ const SUBJECTS: { value: SubjectType; label: string; emoji: string }[] = [
   { value: 'ประวัติศาสตร์', label: 'ประวัติศาสตร์', emoji: '🏛️' },
   { value: 'สังคมศึกษา', label: 'สังคมศึกษา', emoji: '⚖️' },
   { value: 'ภาษาอังกฤษ', label: 'ภาษาอังกฤษ', emoji: '🇬🇧' },
+  { value: 'ความรู้ทั่วไป', label: 'ความรู้ทั่วไป', emoji: '📚' },
+  { value: 'วิทยาศาสตร์', label: 'วิทยาศาสตร์', emoji: '🔬' },
+  { value: 'การเงิน', label: 'การเงิน', emoji: '💸' },
 ];
 
 // === Empty content block factory ===
@@ -35,6 +38,12 @@ function createEmptyBlock(type: LessonContent['type']): LessonContent {
       return { type: 'image', imageUrl: '' };
     case 'quiz':
       return { type: 'quiz', question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' };
+    case 'matching':
+      return { type: 'matching', matchPairs: [{ term: '', definition: '' }, { term: '', definition: '' }], explanation: '' };
+    case 'fill_blank':
+      return { type: 'fill_blank', sentence: '', blankAnswer: '', explanation: '' };
+    case 'ordering':
+      return { type: 'ordering', correctOrder: ['', ''], explanation: '' };
   }
 }
 
@@ -314,7 +323,7 @@ export default function AdminPage() {
                       '#e8734a',
                   }}
                 >
-                  {block.type === 'summary' ? '📄 Summary' : block.type === 'image' ? '🖼️ Image' : '🧠 Quiz'}
+                  {block.type === 'summary' ? '📄 Summary' : block.type === 'image' ? '🖼️ Image' : block.type === 'quiz' ? '🧠 Quiz' : block.type === 'matching' ? '🔀 Matching' : block.type === 'fill_blank' ? '📝 Fill Blank' : '🔢 Ordering'}
                 </span>
                 <button
                   onClick={() => removeBlock(index)}
@@ -424,13 +433,136 @@ export default function AdminPage() {
                   />
                 </div>
               )}
+
+              {/* Matching block */}
+              {block.type === 'matching' && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1" style={{ fontFamily: 'var(--font-prompt)' }}>คู่คำศัพท์:</div>
+                  {(block.matchPairs || []).map((pair, pairIdx) => (
+                    <div key={pairIdx} className="flex gap-2 items-center">
+                      <input
+                        type="text" placeholder={`คำศัพท์ ${pairIdx + 1}`}
+                        value={pair.term}
+                        onChange={(e) => {
+                          const newPairs = [...(block.matchPairs || [])];
+                          newPairs[pairIdx] = { ...newPairs[pairIdx], term: e.target.value };
+                          updateBlock(index, { matchPairs: newPairs } as any);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                      />
+                      <span className="text-xs text-slate-400">→</span>
+                      <input
+                        type="text" placeholder={`ความหมาย ${pairIdx + 1}`}
+                        value={pair.definition}
+                        onChange={(e) => {
+                          const newPairs = [...(block.matchPairs || [])];
+                          newPairs[pairIdx] = { ...newPairs[pairIdx], definition: e.target.value };
+                          updateBlock(index, { matchPairs: newPairs } as any);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                      />
+                      <button onClick={() => {
+                        const newPairs = (block.matchPairs || []).filter((_, i) => i !== pairIdx);
+                        updateBlock(index, { matchPairs: newPairs } as any);
+                      }} className="text-xs text-rose-400">✕</button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newPairs = [...(block.matchPairs || []), { term: '', definition: '' }];
+                      updateBlock(index, { matchPairs: newPairs } as any);
+                    }}
+                    className="text-xs font-bold text-indigo-500 hover:text-indigo-600" style={{ fontFamily: 'var(--font-prompt)' }}
+                  >+ เพิ่มคู่</button>
+                  <textarea
+                    placeholder="คำอธิบาย (แสดงหลังตอบ)"
+                    value={block.explanation || ''}
+                    onChange={(e) => updateBlock(index, { explanation: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none mt-2"
+                    style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                  />
+                </div>
+              )}
+
+              {/* Fill blank block */}
+              {block.type === 'fill_blank' && (
+                <div className="space-y-2">
+                  <input
+                    type="text" placeholder='ประโยค (ใช้ ___ แทนช่องว่าง) เช่น "กรุง___ คือเมืองหลวง"'
+                    value={block.sentence || ''}
+                    onChange={(e) => updateBlock(index, { sentence: e.target.value } as any)}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                  />
+                  <input
+                    type="text" placeholder="คำตอบที่ถูกต้อง"
+                    value={block.blankAnswer || ''}
+                    onChange={(e) => updateBlock(index, { blankAnswer: e.target.value } as any)}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                  />
+                  <textarea
+                    placeholder="คำอธิบาย"
+                    value={block.explanation || ''}
+                    onChange={(e) => updateBlock(index, { explanation: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                    style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                  />
+                </div>
+              )}
+
+              {/* Ordering block */}
+              {block.type === 'ordering' && (
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1" style={{ fontFamily: 'var(--font-prompt)' }}>ลำดับที่ถูกต้อง (จากบนลงล่าง):</div>
+                  {(block.correctOrder || []).map((item, itemIdx) => (
+                    <div key={itemIdx} className="flex gap-2 items-center">
+                      <span className="text-xs font-bold text-indigo-500 w-5">{itemIdx + 1}.</span>
+                      <input
+                        type="text" placeholder={`ลำดับที่ ${itemIdx + 1}`}
+                        value={item}
+                        onChange={(e) => {
+                          const newOrder = [...(block.correctOrder || [])];
+                          newOrder[itemIdx] = e.target.value;
+                          updateBlock(index, { correctOrder: newOrder } as any);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                      />
+                      <button onClick={() => {
+                        const newOrder = (block.correctOrder || []).filter((_, i) => i !== itemIdx);
+                        updateBlock(index, { correctOrder: newOrder } as any);
+                      }} className="text-xs text-rose-400">✕</button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newOrder = [...(block.correctOrder || []), ''];
+                      updateBlock(index, { correctOrder: newOrder } as any);
+                    }}
+                    className="text-xs font-bold text-indigo-500 hover:text-indigo-600" style={{ fontFamily: 'var(--font-prompt)' }}
+                  >+ เพิ่มลำดับ</button>
+                  <textarea
+                    placeholder="คำอธิบาย"
+                    value={block.explanation || ''}
+                    onChange={(e) => updateBlock(index, { explanation: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none mt-2"
+                    style={{ fontFamily: 'var(--font-prompt)', backgroundColor: 'white', border: '1px solid rgba(0,0,0,0.04)', color: 'var(--color-text-primary)' }}
+                  />
+                </div>
+              )}
             </motion.div>
           ))}
         </div>
 
         {/* Add Block Buttons */}
         <div className="flex gap-2 mb-5 flex-wrap">
-          {(['summary', 'image', 'quiz'] as const).map((type) => (
+          {(['summary', 'image', 'quiz', 'matching', 'fill_blank', 'ordering'] as const).map((type) => (
             <motion.button
               key={type}
               whileTap={{ scale: 0.95 }}
@@ -443,7 +575,7 @@ export default function AdminPage() {
                 color: 'var(--color-text-secondary)',
               }}
             >
-              + {type === 'summary' ? '📄 Summary' : type === 'image' ? '🖼️ Image' : '🧠 Quiz'}
+              + {type === 'summary' ? '📄 Summary' : type === 'image' ? '🖼️ Image' : type === 'quiz' ? '🧠 Quiz' : type === 'matching' ? '🔀 Matching' : type === 'fill_blank' ? '📝 Fill Blank' : '🔢 Ordering'}
             </motion.button>
           ))}
         </div>
@@ -541,11 +673,16 @@ export default function AdminPage() {
                       backgroundColor:
                         lesson.subject === 'ประวัติศาสตร์' ? 'rgba(167, 139, 250, 0.15)' :
                         lesson.subject === 'ภาษาอังกฤษ' ? 'rgba(96, 165, 250, 0.15)' :
-                        'rgba(251, 191, 36, 0.15)',
+                        lesson.subject === 'วิทยาศาสตร์' ? 'rgba(16, 185, 129, 0.15)' :
+                        lesson.subject === 'การเงิน' ? 'rgba(234, 179, 8, 0.15)' :
+                        'rgba(148, 163, 184, 0.15)',
                       color:
-                        lesson.subject === 'ประวัติศาสตร์' ? '#8b5cf6' :
+                        lesson.subject === 'ประวัติศาสตร์' ? '#a855f7' :
+                        lesson.subject === 'สังคมศึกษา' ? '#f59e0b' :
                         lesson.subject === 'ภาษาอังกฤษ' ? '#3b82f6' :
-                        '#d97706',
+                        lesson.subject === 'วิทยาศาสตร์' ? '#10b981' :
+                        lesson.subject === 'การเงิน' ? '#eab308' :
+                        '#64748b',
                     }}
                   >
                     {lesson.subject}

@@ -16,6 +16,8 @@ import { defaultLessons } from '@/data/defaultLessons';
 import { EXP_SUMMARY, EXP_IMAGE, EXP_QUIZ_CORRECT } from '@/lib/gamification';
 import { playPop, playSuccess, playError, playLevelUp, playConfetti } from '@/lib/soundEffects';
 import { hapticLight, hapticMedium, hapticSuccess, hapticError, hapticLevelUp } from '@/lib/haptics';
+import MatchingGame from '@/components/MatchingGame';
+import OrderingGame from '@/components/OrderingGame';
 
 // === Confetti Particle (Enhanced) ===
 function ConfettiParticle({ delay }: { delay: number }) {
@@ -103,7 +105,7 @@ export default function LessonPage() {
   const router = useRouter();
   const lessonId = params.id as string;
 
-  const { addEXP, completeLesson, firebaseUser, signInWithGoogle, updateConsecutiveCorrect, userProfile, deductHeart, addCoins } = useAuth();
+  const { addEXP, completeLesson, firebaseUser, signInWithGoogle, updateConsecutiveCorrect, userProfile, deductHeart, addCoins, updateQuestProgress } = useAuth();
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loadingLesson, setLoadingLesson] = useState(true);
@@ -115,6 +117,9 @@ export default function LessonPage() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpTo, setLevelUpTo] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [miniGameCompleted, setMiniGameCompleted] = useState(false);
+  const [fillBlankAnswer, setFillBlankAnswer] = useState('');
+  const [fillBlankChecked, setFillBlankChecked] = useState<boolean | null>(null);
   const [expGained, setExpGained] = useState(0);
   const [isMilestone, setIsMilestone] = useState(false);
 
@@ -195,6 +200,9 @@ export default function LessonPage() {
       if (addCoins) {
         addCoins(20); // Award 20 coins for completing
       }
+      if (updateQuestProgress) {
+        updateQuestProgress('complete_lessons', 1);
+      }
       // Confetti + celebration on lesson complete
       setShowConfetti(true);
       playConfetti();
@@ -217,6 +225,9 @@ export default function LessonPage() {
     setSelectedAnswer(null);
     setShowExplanation(false);
     setIsCorrect(false);
+    setMiniGameCompleted(false);
+    setFillBlankAnswer('');
+    setFillBlankChecked(null);
   }, [lesson, currentPage, selectedAnswer, completeLesson, lessonId, router, addEXP]);
 
   const goBack = useCallback(() => {
@@ -264,7 +275,10 @@ export default function LessonPage() {
       }
 
       if (correct) {
-        // Correct answer: sound + haptic + confetti + EXP
+        // Correct answer: sound + haptic + confetti + EXP + Quest
+        if (updateQuestProgress) {
+          updateQuestProgress('perfect_combo', 1);
+        }
         playSuccess();
         hapticSuccess();
         setShowConfetti(true);
@@ -378,8 +392,8 @@ export default function LessonPage() {
               <motion.div
                 initial={{ scale: 0, rotateY: -90 }}
                 animate={{ 
-                  scale: [0, 1.15, 1],
-                  rotateY: [90, 0, 0],
+                  scale: 1,
+                  rotateY: 0,
                 }}
                 exit={{ scale: 0, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 15 }}
@@ -577,12 +591,12 @@ export default function LessonPage() {
         </div>
 
         {/* Content Area - Presentation Slide centered on Desktop */}
-        <div className="flex-1 w-full max-w-md mx-auto px-5 flex flex-col items-center" onClick={(e) => {
+        <div className="flex-1 w-full max-w-4xl mx-auto px-5 lg:px-8 flex flex-col items-center justify-center py-6" onClick={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const clickX = e.clientX - rect.left;
           const halfWidth = rect.width / 2;
 
-          if (currentContent.type !== 'quiz') {
+          if (currentContent.type !== 'quiz' && currentContent.type !== 'matching' && currentContent.type !== 'ordering' && currentContent.type !== 'fill_blank') {
             if (clickX > halfWidth) goNext();
             else goBack();
           }
@@ -590,20 +604,26 @@ export default function LessonPage() {
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.25 }}
-              className="flex-1 w-full flex flex-col justify-center"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex flex-col justify-center"
             >
               {/* Summary Content */}
               {currentContent.type === 'summary' && (
-                <div className="flex-1 flex flex-col justify-center pb-10">
-                  <div className="bg-white p-8 rounded-3xl border-2 border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative">
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-blue-100 border-4 border-white rounded-full flex items-center justify-center text-3xl shadow-sm">📖</div>
+                <div className="flex-1 flex flex-col justify-center items-center pb-10">
+                  <div className="bg-white p-8 md:p-16 rounded-[40px] border-b-8 border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] relative max-w-3xl w-full">
+                    <motion.div 
+                      animate={{ y: [-5, 5, -5] }}
+                      transition={{ repeat: Infinity, duration: 3 }}
+                      className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-blue-100 border-4 border-white rounded-[24px] flex items-center justify-center text-4xl shadow-md"
+                    >
+                      📖
+                    </motion.div>
                     <p
-                      className="text-[17px] leading-relaxed mt-6 font-medium text-slate-700 text-center"
-                      style={{ fontFamily: 'var(--font-prompt)' }}
+                      className="text-xl md:text-3xl leading-relaxed mt-6 font-medium text-slate-700 text-center"
+                      style={{ fontFamily: 'var(--font-prompt)', lineHeight: '1.6' }}
                     >
                       {currentContent.text}
                     </p>
@@ -614,19 +634,19 @@ export default function LessonPage() {
               {/* Image Content */}
               {currentContent.type === 'image' && (
                 <div className="flex-1 flex flex-col justify-center items-center pb-10">
-                  <div className="bg-white p-4 w-full rounded-3xl border-2 border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] text-center relative overflow-hidden">
+                  <div className="bg-white p-6 md:p-10 w-full max-w-4xl rounded-[40px] border-b-8 border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] text-center relative overflow-hidden">
                     {currentContent.imageUrl ? (
-                      <div className="relative rounded-2xl overflow-hidden border-2 border-slate-50">
+                      <div className="relative rounded-[32px] overflow-hidden border-4 border-slate-50 shadow-inner">
                         <img
                           src={currentContent.imageUrl}
                           alt="ภาพประกอบบทเรียน"
-                          className="w-full max-h-72 object-cover"
+                          className="w-full max-h-[50vh] object-cover"
                         />
                       </div>
                     ) : (
-                      <div className="py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                        <div className="text-6xl mb-4 opacity-50">📸</div>
-                        <p className="text-sm font-bold text-slate-400" style={{ fontFamily: 'var(--font-prompt)' }}>ภาพความรู้จะแสดงที่นี่</p>
+                      <div className="py-24 bg-slate-50 rounded-[32px] border-4 border-dashed border-slate-200">
+                        <div className="text-8xl mb-6 opacity-30">📸</div>
+                        <p className="text-lg font-bold text-slate-400" style={{ fontFamily: 'var(--font-prompt)' }}>ภาพความรู้จะแสดงที่นี่</p>
                       </div>
                     )}
                   </div>
@@ -635,13 +655,19 @@ export default function LessonPage() {
 
               {/* Quiz Content */}
               {currentContent.type === 'quiz' && (
-                <div className="flex-1 flex flex-col pt-2">
+                <div className="flex-1 flex flex-col pt-4 max-w-4xl w-full mx-auto">
                   {/* Question */}
-                  <div className="flex items-start gap-4 mb-8 px-2">
-                    <div className="w-14 h-14 rounded-2xl bg-white border-b-4 border-slate-200 shadow-sm flex items-center justify-center flex-shrink-0 text-3xl">🤔</div>
-                    <div className="bg-white p-5 rounded-bl-none rounded-3xl border-2 border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex-1 relative">
+                  <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-12 px-2">
+                    <motion.div 
+                      animate={{ rotate: [0, 5, -5, 0] }}
+                      transition={{ repeat: Infinity, duration: 4 }}
+                      className="w-20 h-20 rounded-3xl bg-white border-b-4 border-slate-200 shadow-lg flex items-center justify-center flex-shrink-0 text-5xl"
+                    >
+                      🤔
+                    </motion.div>
+                    <div className="bg-white p-8 rounded-3xl md:rounded-bl-none border-b-8 border-slate-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex-1 relative">
                        <h3
-                        className="text-[17px] font-bold leading-relaxed text-slate-700"
+                        className="text-xl md:text-2xl font-bold leading-relaxed text-slate-700 text-center md:text-left"
                         style={{ fontFamily: 'var(--font-prompt)' }}
                       >
                         {currentContent.question}
@@ -649,36 +675,37 @@ export default function LessonPage() {
                     </div>
                   </div>
 
-                  {/* Options */}
-                  <div className="flex flex-col gap-4">
+                  {/* Options: Responsive Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 px-2">
                     {currentContent.options?.map((option, i) => {
-                      let btnClass = "btn-3d btn-3d-white w-full text-left p-4 justify-start";
+                      let btnClass = "btn-3d btn-3d-white w-full text-left p-5 justify-start h-auto min-h-[80px]";
                       
                       if (selectedAnswer !== null) {
                         if (i === currentContent.correctIndex) {
-                          btnClass = "btn-3d btn-3d-success w-full text-left p-4 justify-start border-transparent";
+                          btnClass = "btn-3d btn-3d-success w-full text-left p-5 justify-start border-transparent h-auto min-h-[80px]";
                         } else if (i === selectedAnswer && i !== currentContent.correctIndex) {
-                          btnClass = "btn-3d btn-3d-danger w-full text-left p-4 justify-start border-transparent";
+                          btnClass = "btn-3d btn-3d-danger w-full text-left p-5 justify-start border-transparent h-auto min-h-[80px]";
                         } else {
-                          btnClass = "btn-3d btn-3d-white w-full text-left p-4 justify-start opacity-60 grayscale";
+                          btnClass = "btn-3d btn-3d-white w-full text-left p-5 justify-start opacity-60 h-auto min-h-[80px]";
                         }
                       }
 
                       return (
-                        <button
+                        <motion.button
                           key={i}
+                          whileHover={selectedAnswer === null ? { x: 4 } : {}}
                           onClick={() => handleAnswer(i)}
                           className={btnClass}
                           disabled={selectedAnswer !== null}
                           style={{ fontFamily: 'var(--font-prompt)' }}
                         >
-                          <div className="flex items-center gap-4 w-full relative">
+                          <div className="flex items-center gap-5 w-full relative">
                             {/* Option Letter Indicator */}
                             <span
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 border-2 ${
+                              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black flex-shrink-0 border-2 transition-colors ${
                                 selectedAnswer !== null && i === currentContent.correctIndex ? 'bg-white/20 border-white text-white' :
                                 selectedAnswer === i && !isCorrect ? 'bg-white/20 border-white text-white' :
-                                'bg-slate-100 border-slate-200 text-slate-400'
+                                'bg-slate-50 border-slate-100 text-slate-400'
                               }`}
                             >
                               {selectedAnswer !== null && i === currentContent.correctIndex
@@ -689,14 +716,14 @@ export default function LessonPage() {
                             </span>
                             
                             <span 
-                              className={`text-[15px] font-bold py-2 ${
+                              className={`text-lg font-bold leading-snug ${
                                 selectedAnswer !== null && (i === currentContent.correctIndex || selectedAnswer === i) ? 'text-white' : 'text-slate-600'
                               }`}
                             >
                               {option}
                             </span>
                           </div>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -705,23 +732,158 @@ export default function LessonPage() {
                   <AnimatePresence>
                     {showExplanation && (
                       <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        className="glass-card p-4 mt-4"
+                        exit={{ opacity: 0, y: 30 }}
+                        className="glass-card p-6 mt-8 shadow-xl"
                         style={{
-                          borderLeft: `4px solid ${isCorrect ? 'var(--color-quiz-correct)' : 'var(--color-quiz-incorrect)'}`,
+                          background: isCorrect ? 'rgba(34, 197, 94, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                          borderLeft: `8px solid ${isCorrect ? 'var(--color-quiz-correct)' : 'var(--color-quiz-incorrect)'}`,
                         }}
                       >
-                        <p className="text-xs font-semibold mb-1" style={{ fontFamily: 'var(--font-prompt)', color: isCorrect ? 'var(--color-quiz-correct)' : 'var(--color-quiz-incorrect)' }}>
-                          {isCorrect ? '🎉 ถูกต้อง!' : '💡 คำอธิบาย'}
-                        </p>
-                        <p className="text-sm" style={{ fontFamily: 'var(--font-prompt)', color: 'var(--color-text-secondary)' }}>
-                          {currentContent.explanation}
-                        </p>
+                        <div className="flex items-start gap-4">
+                          <div className="text-3xl">{isCorrect ? '✅' : '💡'}</div>
+                          <div>
+                            <p className="text-sm font-black mb-1 uppercase tracking-widest" style={{ fontFamily: 'var(--font-prompt)', color: isCorrect ? 'var(--color-quiz-correct)' : 'var(--color-quiz-incorrect)' }}>
+                              {isCorrect ? 'ถูกเผงเลย!' : 'มาดูคำอธิบายกัน'}
+                            </p>
+                            <p className="text-base font-medium text-slate-700" style={{ fontFamily: 'var(--font-prompt)' }}>
+                              {currentContent.explanation}
+                            </p>
+                          </div>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+              )}
+
+              {/* Matching Game Content */}
+              {currentContent.type === 'matching' && currentContent.matchPairs && (
+                <div className="flex-1 flex flex-col justify-center items-center pb-10 w-full">
+                  <div className="bg-white p-6 md:p-10 rounded-[40px] border-b-8 border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] w-full max-w-3xl">
+                    <MatchingGame
+                      pairs={currentContent.matchPairs}
+                      explanation={currentContent.explanation}
+                      onComplete={(allCorrect) => {
+                        if (allCorrect) {
+                          playSuccess();
+                          hapticSuccess();
+                          setShowConfetti(true);
+                          setTimeout(() => setShowConfetti(false), 2000);
+                          handleExpGain(EXP_QUIZ_CORRECT);
+                          if (updateQuestProgress) updateQuestProgress('perfect_combo', 1);
+                        }
+                        setMiniGameCompleted(true);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Fill in the Blank Content */}
+              {currentContent.type === 'fill_blank' && (
+                <div className="flex-1 flex flex-col justify-center items-center pb-10 w-full">
+                  <div className="bg-white p-6 md:p-10 rounded-[40px] border-b-8 border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] w-full max-w-3xl text-center">
+                    <div className="text-4xl mb-4">📝</div>
+                    <p className="text-lg md:text-xl font-bold text-slate-700 mb-6" style={{ fontFamily: 'var(--font-prompt)' }}>
+                      {currentContent.sentence?.split('___').map((part, i, arr) => (
+                        <span key={i}>
+                          {part}
+                          {i < arr.length - 1 && (
+                            fillBlankChecked !== null ? (
+                              <span className={`inline-block px-3 py-1 mx-1 rounded-xl font-black border-2 ${fillBlankChecked ? 'bg-emerald-100 border-emerald-300 text-emerald-700' : 'bg-rose-100 border-rose-300 text-rose-700'}`}>
+                                {fillBlankChecked ? fillBlankAnswer : currentContent.blankAnswer}
+                              </span>
+                            ) : (
+                              <span 
+                                onClick={() => setFillBlankAnswer('')} 
+                                className={`inline-block border-b-4 border-dashed px-3 mx-1 min-w-[80px] text-center cursor-pointer transition-colors ${fillBlankAnswer ? 'border-indigo-500 font-bold text-indigo-600 bg-indigo-50 rounded-lg' : 'border-slate-300'}`}
+                              >
+                                {fillBlankAnswer || ' '}
+                              </span>
+                            )
+                          )}
+                        </span>
+                      ))}
+                    </p>
+
+                    {fillBlankChecked === null && (
+                      <div className="flex flex-col items-center gap-6 mt-8 w-full max-w-lg mx-auto">
+                        {/* Options Wrapper */}
+                        <div className="flex flex-wrap justify-center gap-3 w-full">
+                          {(currentContent.options || [currentContent.blankAnswer || '']).map((opt, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setFillBlankAnswer(opt)}
+                              className={`px-5 py-3 rounded-2xl border-2 font-bold transition-all active:scale-95 text-lg shadow-[0_4px_12px_rgba(0,0,0,0.03)] ${fillBlankAnswer === opt ? 'bg-indigo-100 border-indigo-500 text-indigo-700 scale-105 shadow-indigo-500/20' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'}`}
+                              style={{ fontFamily: 'var(--font-prompt)' }}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Check Answer Button */}
+                        <button
+                          onClick={() => {
+                            if (!fillBlankAnswer.trim()) return;
+                            const correct = fillBlankAnswer.trim().toLowerCase() === (currentContent.blankAnswer || '').toLowerCase();
+                            setFillBlankChecked(correct);
+                            if (correct) {
+                              playSuccess(); hapticSuccess();
+                              setShowConfetti(true); setTimeout(() => setShowConfetti(false), 2000);
+                              handleExpGain(EXP_QUIZ_CORRECT);
+                              if (updateQuestProgress) updateQuestProgress('perfect_combo', 1);
+                            } else {
+                              playError(); hapticError();
+                              if (deductHeart) deductHeart();
+                            }
+                            setMiniGameCompleted(true);
+                          }}
+                          disabled={!fillBlankAnswer.trim()}
+                          className="w-full py-4 bg-indigo-500 text-white font-black text-xl rounded-2xl disabled:opacity-40 disabled:bg-slate-300 active:scale-95 transition-all shadow-xl shadow-indigo-500/20"
+                          style={{ fontFamily: 'var(--font-mali)' }}
+                        >
+                          ตรวจคำตอบ
+                        </button>
+                      </div>
+                    )}
+
+                    {fillBlankChecked !== null && (
+                      <div className={`mt-4 p-4 rounded-2xl ${fillBlankChecked ? 'bg-emerald-50 border border-emerald-200' : 'bg-rose-50 border border-rose-200'}`}>
+                        <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-prompt)', color: fillBlankChecked ? '#16a34a' : '#dc2626' }}>
+                          {fillBlankChecked ? '✅ ถูกต้อง!' : `❌ คำตอบที่ถูกคือ "${currentContent.blankAnswer}"`}
+                        </p>
+                        {currentContent.explanation && (
+                          <p className="text-xs text-slate-600 mt-1" style={{ fontFamily: 'var(--font-prompt)' }}>{currentContent.explanation}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Ordering Game Content */}
+              {currentContent.type === 'ordering' && currentContent.correctOrder && (
+                <div className="flex-1 flex flex-col justify-center items-center pb-10 w-full">
+                  <div className="bg-white p-6 md:p-10 rounded-[40px] border-b-8 border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] w-full max-w-3xl">
+                    <OrderingGame
+                      correctOrder={currentContent.correctOrder}
+                      explanation={currentContent.explanation}
+                      onComplete={(allCorrect) => {
+                        if (allCorrect) {
+                          playSuccess();
+                          hapticSuccess();
+                          setShowConfetti(true);
+                          setTimeout(() => setShowConfetti(false), 2000);
+                          handleExpGain(EXP_QUIZ_CORRECT);
+                          if (updateQuestProgress) updateQuestProgress('perfect_combo', 1);
+                        }
+                        setMiniGameCompleted(true);
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -729,16 +891,20 @@ export default function LessonPage() {
         </div>
 
         {/* Bottom Action Area (Always rendering a placeholder or the true button based on state) */}
-        <div className="w-full max-w-md mx-auto px-6 py-6 pb-10">
-          {(currentContent.type === 'quiz' && selectedAnswer !== null) || currentContent.type !== 'quiz' ? (
+        <div className="w-full max-w-4xl mx-auto px-6 py-8 pb-12">
+          {((currentContent.type === 'quiz' && selectedAnswer !== null) || 
+            (currentContent.type === 'matching' && miniGameCompleted) ||
+            (currentContent.type === 'fill_blank' && miniGameCompleted) ||
+            (currentContent.type === 'ordering' && miniGameCompleted) ||
+            (currentContent.type !== 'quiz' && currentContent.type !== 'matching' && currentContent.type !== 'fill_blank' && currentContent.type !== 'ordering')) ? (
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full"
+              className="w-full flex justify-center"
             >
               <button
                 onClick={goNext}
-                className={`btn-3d w-full py-4 text-[17px] font-black uppercase tracking-wide ${
+                className={`btn-3d w-full max-w-md py-5 text-xl font-black uppercase tracking-wider ${
                   isCorrect && currentContent.type === 'quiz' ? 'btn-3d-success' :
                   !isCorrect && currentContent.type === 'quiz' ? 'btn-3d-danger' :
                   'btn-3d-primary'
@@ -754,11 +920,13 @@ export default function LessonPage() {
               </button>
             </motion.div>
           ) : (
-            <div className="w-full py-4 text-center text-sm font-bold text-slate-400 bg-slate-100 rounded-3xl border-2 border-slate-200 border-dashed" style={{ fontFamily: 'var(--font-prompt)' }}>
-              กรุณาเลือกคำตอบ ด้านบน 👆
+            <div className="flex justify-center">
+              <div className="w-full max-w-md py-5 text-center text-base font-bold text-slate-400 bg-white/50 rounded-3xl border-4 border-slate-100 border-dashed" style={{ fontFamily: 'var(--font-prompt)' }}>
+                กรุณาเลือกคำตอบ ด้านบน 👆
+              </div>
             </div>
           )}
         </div>
-      </div>
+    </div>
   );
 }

@@ -168,7 +168,7 @@ export default function ProfilePage() {
              </div>
 
              {/* Bento Stats (Paper Style) */}
-             <div className="grid grid-cols-2 gap-6 pt-4">
+             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
                 <div className="hand-drawn-border p-4 bg-white/40">
                    <div className="text-[9px] uppercase font-bold text-slate-400">Streak Record</div>
                    <div className="text-2xl font-black text-orange-600" style={{ fontFamily: 'var(--font-mali)' }}>{streakCount} Days</div>
@@ -176,6 +176,22 @@ export default function ProfilePage() {
                 <div className="hand-drawn-border p-4 bg-white/40">
                    <div className="text-[9px] uppercase font-bold text-slate-400">Completed Quests</div>
                    <div className="text-2xl font-black text-indigo-600" style={{ fontFamily: 'var(--font-mali)' }}>{completedCount}</div>
+                </div>
+                <div className="hand-drawn-border p-4 bg-white/40">
+                   <div className="text-[9px] uppercase font-bold text-slate-400">💰 Coins</div>
+                   <div className="text-2xl font-black text-yellow-600" style={{ fontFamily: 'var(--font-mali)' }}>{userProfile?.coins || 0}</div>
+                </div>
+                <div className="hand-drawn-border p-4 bg-white/40">
+                   <div className="text-[9px] uppercase font-bold text-slate-400">❤️ Hearts</div>
+                   <div className="text-2xl font-black text-rose-500" style={{ fontFamily: 'var(--font-mali)' }}>{userProfile?.hearts || 0}/5</div>
+                </div>
+             </div>
+
+             {/* Total Items Unlocked */}
+             <div className="hand-drawn-border p-4 bg-white/40 mt-6">
+                <div className="text-[9px] uppercase font-bold text-slate-400">✨ Items Unlocked</div>
+                <div className="text-2xl font-black text-purple-600" style={{ fontFamily: 'var(--font-mali)' }}>
+                  {((userProfile?.unlockedMascotStyles?.length || 1) - 1) + ((userProfile?.unlockedProfileFrames?.length || 1) - 1) + (userProfile?.unlockedHats?.length || 0) + (userProfile?.unlockedAccessories?.length || 0)} items
                 </div>
              </div>
           </div>
@@ -225,14 +241,25 @@ export default function ProfilePage() {
                    <span className="w-4 h-0.5 bg-slate-300" /> Log Entries
                 </h3>
                 <div className="space-y-4">
-                   {[1, 2, 3].map(i => (
-                     <div key={i} className="flex gap-4 items-start pb-4 border-b border-slate-200 border-dashed">
-                        <div className="text-[10px] font-bold text-indigo-400 font-mono">04/09/26</div>
-                        <div className="text-[12px] font-medium text-slate-600 italic">
-                          "{i === 1 ? 'Successfully finished English Level 1 quest.' : i === 2 ? 'Reached a 3-day learning streak.' : 'Entered the top 10 leaderboard for the first time.'}"
-                        </div>
+                   {completedIds.length === 0 ? (
+                     <div className="text-center py-6">
+                       <span className="text-3xl">📝</span>
+                       <p className="text-xs text-slate-400 mt-2 italic" style={{ fontFamily: 'var(--font-prompt)' }}>ยังไม่มีบันทึก — ไปผจญภัยเพิ่มเลย!</p>
                      </div>
-                   ))}
+                   ) : (
+                     completedIds.slice(-5).reverse().map((lessonId) => {
+                       const lesson = defaultLessons.find(l => l.id === lessonId);
+                       const emoji = lesson?.subject === 'ประวัติศาสตร์' ? '🏛️' : lesson?.subject === 'สังคมศึกษา' ? '⚖️' : lesson?.subject === 'ภาษาอังกฤษ' ? '🇬🇧' : lesson?.subject === 'วิทยาศาสตร์' ? '🔬' : lesson?.subject === 'การเงิน' ? '💸' : '📚';
+                       return (
+                         <div key={lessonId} className="flex gap-4 items-start pb-4 border-b border-slate-200 border-dashed">
+                            <div className="text-[10px] font-bold text-indigo-400 font-mono">{emoji}</div>
+                            <div className="text-[12px] font-medium text-slate-600 italic" style={{ fontFamily: 'var(--font-prompt)' }}>
+                              "ผ่านด่าน: {lesson?.title || lessonId}"
+                            </div>
+                         </div>
+                       );
+                     })
+                   )}
                 </div>
              </div>
 
